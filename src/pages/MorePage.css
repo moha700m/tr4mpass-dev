@@ -1,0 +1,57 @@
+.more-card {
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.more-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-row img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.account-row .btn {
+  margin-inline-start: auto;
+  min-height: 38px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.plan-list {
+  margin: 0;
+  padding-inline-start: 1.2rem;
+  color: var(--text-soft);
+}
+
+.plan-current {
+  align-self: start;
+}
+
+.theme-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compare {
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.more-card code {
+  font-size: 0.85em;
+}

@@ -1,0 +1,89 @@
+.week-nav {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.week-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.day-col {
+  min-height: 140px;
+  padding: 12px;
+}
+
+.day-col.today {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: inset 0 0 0 1px var(--accent-soft);
+}
+
+.day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.day-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.post-chip {
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--bg-muted);
+  cursor: grab;
+  border-inline-start: 3px solid var(--accent);
+}
+
+.post-chip:active {
+  cursor: grabbing;
+}
+
+.post-chip p {
+  margin: 6px 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.post-chip small {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+.chip-status {
+  font-size: 0.72rem;
+  color: var(--accent-strong);
+}
+
+.status-published {
+  border-inline-start-color: var(--text-faint);
+}
+
+.status-needs_attention {
+  border-inline-start-color: var(--warn);
+}
+
+.status-failed {
+  border-inline-start-color: var(--danger);
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 900px) {
+  .week-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .day-col {
+    min-height: 280px;
+  }
+}

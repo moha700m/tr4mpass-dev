@@ -1,0 +1,34 @@
+.login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg-hero);
+}
+
+.login-card {
+  width: min(420px, 100%);
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+  align-items: center;
+}
+
+.login-card h1 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.brand-mark.lg {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 8px var(--accent-soft);
+}
+
+.back {
+  font-size: 0.9rem;
+}

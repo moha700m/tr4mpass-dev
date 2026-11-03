@@ -1,0 +1,119 @@
+.landing {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.landing-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-hero);
+  z-index: 0;
+}
+
+.landing-bg::after {
+  content: '';
+  position: absolute;
+  inset: auto -10% -20% 20%;
+  height: 55%;
+  background:
+    radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 55%),
+    radial-gradient(circle at 70% 60%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 50%);
+  filter: blur(8px);
+  animation: drift 12s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-4%, -3%, 0) scale(1.05);
+  }
+}
+
+.landing-nav,
+.landing-hero,
+.landing-rest {
+  position: relative;
+  z-index: 1;
+  width: min(920px, 100%);
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+.landing-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 22px;
+}
+
+.landing-brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.landing-hero {
+  min-height: calc(100dvh - 88px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 48px;
+  animation: rise 0.7s var(--ease) both;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+.hero-brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.4rem, 14vw, 6.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+}
+
+.hero-line {
+  margin: 18px 0 0;
+  max-width: 28ch;
+  font-size: clamp(1.05rem, 3.2vw, 1.3rem);
+  color: var(--text-soft);
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.landing-rest {
+  padding-block: 64px 80px;
+  border-top: 1px solid var(--border);
+  animation: rise 0.7s var(--ease) 0.15s both;
+}
+
+.landing-rest h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.feature-lines {
+  margin-top: 24px;
+  display: grid;
+  gap: 14px;
+}
+
+.feature-lines p {
+  margin: 0;
+  padding-block: 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.05rem;
+}

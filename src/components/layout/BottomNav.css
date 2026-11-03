@@ -1,0 +1,51 @@
+.bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 52px;
+  border-radius: 14px;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  font-weight: 500;
+  transition: color 0.2s, background 0.2s;
+}
+
+.nav-item.active {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+@media (min-width: 860px) {
+  .bottom-nav {
+    position: sticky;
+    top: 0;
+    bottom: auto;
+    inset-inline: auto;
+    width: min(960px, 100%);
+    margin: 0 auto;
+    border-top: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0 0 18px 18px;
+    padding-block: 10px;
+  }
+
+  .app-main {
+    padding-top: 8px;
+  }
+}
