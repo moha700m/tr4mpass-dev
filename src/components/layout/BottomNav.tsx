@@ -5,7 +5,7 @@ import './BottomNav.css'
 const items = [
   { to: '/write', label: 'اكتب', icon: PenLine },
   { to: '/calendar', label: 'التقويم', icon: CalendarDays },
-  { to: '/import', label: 'استيراد', icon: Upload },
+  { to: '/import', label: 'استيراد جماعي', icon: Upload },
   { to: '/analytics', label: 'التحليلات', icon: BarChart3 },
   { to: '/more', label: 'المزيد', icon: MoreHorizontal },
 ]

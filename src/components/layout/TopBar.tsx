@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { ChevronDown } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import './TopBar.css'
 
@@ -14,9 +15,13 @@ export function TopBar() {
       </Link>
 
       {account ? (
-        <Link to="/more" className="account-pill">
+        <Link to="/more" className="account-pill" title="إدارة الحسابات">
           <img src={account.avatarUrl} alt="" />
-          <span>@{account.handle}</span>
+          <span className="account-meta">
+            <strong>{account.name}</strong>
+            <small>@{account.handle}</small>
+          </span>
+          <ChevronDown size={14} className="account-chevron" aria-hidden />
         </Link>
       ) : (
         <button type="button" className="btn btn-soft top-connect" onClick={connectX}>

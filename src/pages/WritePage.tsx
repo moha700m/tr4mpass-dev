@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import {
-  CalendarClock,
-  ImagePlus,
-  Plus,
-  Send,
-  Trash2,
-  Sparkles,
-} from 'lucide-react'
+import { CalendarClock, ImagePlus, Plus, Send, Trash2 } from 'lucide-react'
 import { AiPanel } from '../components/write/AiPanel'
 import { TweetPreview } from '../components/write/TweetPreview'
 import { useApp } from '../context/AppContext'
+import { SUGGESTED_SLOTS } from '../data/mock'
 import { useThreadComposer } from '../hooks/useThreadComposer'
 import { api } from '../lib/api'
 import { formatArabicDateTime, nextFreeSlot } from '../lib/schedule'
@@ -39,7 +33,6 @@ export function WritePage() {
     setActiveAccount,
   } = useApp()
   const composer = useThreadComposer()
-  const [showAi, setShowAi] = useState(true)
   const [scheduledAt, setScheduledAt] = useState(() => nextFreeSlot(posts))
   const [status, setStatus] = useState('')
   const [publishing, setPublishing] = useState(false)
@@ -60,16 +53,36 @@ export function WritePage() {
     return d
   }, [plan.scheduleDays])
 
+  const dayOptions = useMemo(() => buildDayOptions(new Date(), scheduleMax), [scheduleMax])
+  const timeOptions = useMemo(() => buildTimeOptions(), [])
+
+  const dayValue = toDayKey(scheduledAt)
+  const timeValue = toTimeKey(scheduledAt)
+
+  const setDay = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number)
+    const next = new Date(scheduledAt)
+    next.setFullYear(y, m - 1, d)
+    setScheduledAt(next)
+  }
+
+  const setTime = (key: string) => {
+    const [hh, mm] = key.split(':').map(Number)
+    const next = new Date(scheduledAt)
+    next.setHours(hh, mm, 0, 0)
+    setScheduledAt(next)
+  }
+
   const suggestNearest = async () => {
     try {
       const { slot } = await api.nextSlot()
       const next = new Date(slot)
       setScheduledAt(next)
-      setStatus(`أقرب موعد فارغ: ${formatArabicDateTime(next)}. اضغط لجدولة عنده.`)
+      setStatus(`أقرب موعد فارغ لهذا الحساب: ${formatArabicDateTime(next)}. اضغط لجدولة عنده.`)
     } catch {
       const next = nextFreeSlot(posts)
       setScheduledAt(next)
-      setStatus(`أقرب موعد فارغ: ${formatArabicDateTime(next)}`)
+      setStatus(`أقرب موعد فارغ لهذا الحساب: ${formatArabicDateTime(next)}`)
     }
   }
 
@@ -173,16 +186,7 @@ export function WritePage() {
 
   return (
     <div className="write-page rise">
-      <div className="write-heading">
-        <div>
-          <h1 className="page-title">تغريدة جديدة</h1>
-          <p className="page-sub">صندوق هادئ لثريد كامل — بدون تشتيت.</p>
-        </div>
-        <button type="button" className="btn btn-ghost" onClick={() => setShowAi((v) => !v)}>
-          <Sparkles size={16} />
-          ذكاء
-        </button>
-      </div>
+      <h1 className="page-title">تغريدة جديدة</h1>
 
       {connectedFlash && (
         <p className="banner ok">تم ربط حساب X بنجاح. تقدر تكتب وتنشر الحين.</p>
@@ -197,12 +201,10 @@ export function WritePage() {
         </p>
       )}
 
-      {showAi && (
-        <AiPanel
-          currentText={composer.parts.map((p) => p.text).join('\n\n')}
-          onApply={(parts) => composer.replaceAll(parts)}
-        />
-      )}
+      <AiPanel
+        currentText={composer.parts.map((p) => p.text).join('\n\n')}
+        onApply={(parts) => composer.replaceAll(parts)}
+      />
 
       <div className="write-layout">
         <section className="composer surface">
@@ -228,16 +230,12 @@ export function WritePage() {
                 )}
               </select>
             </label>
-            <span className={`chip ${composer.remaining < 500 ? 'chip-accent' : ''}`}>
-              {composer.totalChars.toLocaleString('ar-SA')} /{' '}
-              {composer.maxChars.toLocaleString('ar-SA')}
-            </span>
           </div>
 
           {composer.parts.map((part, index) => (
             <div key={part.id} className="part-block">
               <div className="part-head">
-                <span>تغريدة {index + 1}</span>
+                <span className="part-index">{index + 1}</span>
                 {composer.parts.length > 1 && (
                   <button
                     type="button"
@@ -256,6 +254,15 @@ export function WritePage() {
                 placeholder={index === 0 ? 'ما الذي تريد قوله؟' : 'كمّل الثريد…'}
                 rows={5}
               />
+              <div className="part-foot">
+                <button type="button" className="icon-btn media-icon" onClick={() => onPickMedia(part.id)}>
+                  <ImagePlus size={18} />
+                  <span className="sr-only">إضافة وسائط</span>
+                </button>
+                <span className="char-count faint">
+                  {Math.max(0, composer.maxChars - [...part.text].length).toLocaleString('ar-SA')}
+                </span>
+              </div>
               {part.media.length > 0 && (
                 <div className="media-row">
                   {part.media.map((m) => (
@@ -275,10 +282,6 @@ export function WritePage() {
                   ))}
                 </div>
               )}
-              <button type="button" className="btn btn-ghost media-btn" onClick={() => onPickMedia(part.id)}>
-                <ImagePlus size={16} />
-                صورة / فيديو / GIF
-              </button>
             </div>
           ))}
 
@@ -289,20 +292,33 @@ export function WritePage() {
 
           <div className="schedule-box">
             <strong>متى يُنشر؟</strong>
-            <label>
-              التاريخ والوقت
-              <input
-                type="datetime-local"
-                className="field"
-                value={toLocalInput(scheduledAt)}
-                min={toLocalInput(new Date())}
-                max={toLocalInput(scheduleMax)}
-                onChange={(e) => setScheduledAt(new Date(e.target.value))}
-              />
-            </label>
-            <button type="button" className="btn btn-soft" onClick={() => void suggestNearest()}>
+            <div className="schedule-grid">
+              <label className="schedule-field">
+                اليوم
+                <select className="field schedule-select" value={dayValue} onChange={(e) => setDay(e.target.value)}>
+                  {dayOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="schedule-field">
+                الوقت
+                <select className="field schedule-select" value={timeValue} onChange={(e) => setTime(e.target.value)}>
+                  {timeOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button type="button" className="btn btn-ghost suggest-slot" onClick={() => void suggestNearest()}>
               <CalendarClock size={16} />
-              أقرب موعد فارغ
+              <span>
+                أقرب موعد فارغ لهذا الحساب: {formatArabicDateTime(scheduledAt)}. اضغط لاختياره
+              </span>
             </button>
           </div>
 
@@ -337,7 +353,49 @@ export function WritePage() {
   )
 }
 
-function toLocalInput(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function toDayKey(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function toTimeKey(date: Date) {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function buildDayOptions(from: Date, max: Date) {
+  const options: { value: string; label: string }[] = []
+  const cursor = new Date(from)
+  cursor.setHours(12, 0, 0, 0)
+  const end = new Date(max)
+  end.setHours(12, 0, 0, 0)
+  while (cursor.getTime() <= end.getTime() && options.length < 60) {
+    options.push({
+      value: toDayKey(cursor),
+      label: new Intl.DateTimeFormat('ar-SA', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }).format(cursor),
+    })
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return options
+}
+
+function buildTimeOptions() {
+  const hours = new Set<number>([...SUGGESTED_SLOTS, ...Array.from({ length: 24 }, (_, i) => i)])
+  return [...hours]
+    .sort((a, b) => a - b)
+    .map((hour) => {
+      const value = `${pad(hour)}:00`
+      const label = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }).format(new Date(2000, 0, 1, hour, 0))
+      return { value, label }
+    })
 }
