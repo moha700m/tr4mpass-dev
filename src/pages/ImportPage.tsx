@@ -66,10 +66,9 @@ export function ImportPage() {
     <div className="import-page rise">
       <div className="row" style={{ alignItems: 'flex-start' }}>
         <div className="spacer">
-          <h1 className="page-title">استيراد جماعي</h1>
+          <h1 className="page-title">استيراد</h1>
           <p className="page-sub">
-            الصق روابط ثريدات X. نستورد كل ثريد، نعيد صياغته بلهجة سعودية، ونجدولّه في أقرب موعد
-            فارغ (9ص، 12م، 4م، 8م).
+            الصق روابط X → صياغة سعودية → جدولة على أقرب وقت فارغ.
           </p>
         </div>
         {remaining !== null && <span className="chip chip-accent">{remaining} متبقية</span>}

@@ -40,8 +40,10 @@ function softSaudiLexicon(text) {
     .replace(/\bأيضاً?\b/g, 'بعد')
     .replace(/\bلكن\b/g, 'بس')
     .replace(/\bجداً?\b/g, 'مرّة')
-    .replace(/\bأريد\b/g, 'أبي')
     .replace(/\bأريد أن\b/g, 'أبي')
+    .replace(/\bأريد\b/g, 'أبي')
+    .replace(/\bهل\b/g, 'هل')
+    .replace(/\bالآن\b/g, 'الحين')
 }
 
 function extractLinks(text) {
@@ -53,33 +55,73 @@ function extractMentions(text) {
 }
 
 function firstLine(text) {
-  return String(text || '')
-    .split('\n')
-    .map((l) => l.trim())
-    .find(Boolean) || ''
+  return (
+    String(text || '')
+      .split('\n')
+      .map((l) => l.trim())
+      .find(Boolean) || ''
+  )
 }
 
 function bulletLines(text) {
   return String(text || '')
     .split('\n')
     .map((l) => l.replace(/^[\s•\-\*]+/, '').trim())
-    .filter((l) => l && !/^https?:\/\//i.test(l) && !/^by\s+@/i.test(l) && !/^🔗/.test(l) && l.length > 2)
+    .filter(
+      (l) =>
+        l &&
+        !/^https?:\/\//i.test(l) &&
+        !/^by\s+@/i.test(l) &&
+        !/^🔗/.test(l) &&
+        l.length > 2,
+    )
 }
+
+const STOP_TITLE = new Set(
+  'Why How What When Where Who This That These Those Just New Free Get Try Use Ship Build Make Your Out Now Today'.split(
+    ' ',
+  ),
+)
 
 function productName(text) {
-  const m = String(text || '').match(
-    /\b([A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+)*)\s*(?:v?\d+(?:\.\d+)*)?/ ,
-  )
-  if (m) {
-    const ver = String(text).match(/\bv?\d+(?:\.\d+){1,3}\b/i)
-    return ver ? `${m[1]} ${ver[0]}` : m[1]
+  const raw = String(text || '')
+  // Prefer Product + version (BuildBox v2.1.4)
+  const withVer = raw.match(/\b([A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+)*)\s+(v?\d+(?:\.\d+){1,3})\b/)
+  if (withVer && !STOP_TITLE.has(withVer[1].split(/\s+/)[0])) {
+    return `${withVer[1]} ${withVer[2]}`
   }
-  return firstLine(text).replace(/[^\w\s.\-]/g, '').trim() || 'التحديث'
+  const candidates = [...raw.matchAll(/\b([A-Z][A-Za-z0-9]{2,}(?:\s+[A-Z][A-Za-z0-9]+)*)\b/g)].map(
+    (m) => m[1],
+  )
+  const scored = []
+  for (const c of candidates) {
+    const first = c.split(/\s+/)[0]
+    if (STOP_TITLE.has(first)) continue
+    if (/^(https?|http|www)$/i.test(first)) continue
+    // Prefer brand-like CamelCase over ALLCAPS acronyms (IPA, API…)
+    const camel = /[a-z]/.test(first) && /[A-Z]/.test(first) ? 2 : 0
+    const notAllCaps = first !== first.toUpperCase() ? 1 : 0
+    scored.push({ c, score: camel + notAllCaps + Math.min(first.length, 8) / 10 })
+  }
+  scored.sort((a, b) => b.score - a.score)
+  if (scored[0]) return scored[0].c
+  const ar = firstLine(raw).match(/[\u0600-\u06FF][\u0600-\u06FF\s]{2,40}/)
+  if (ar) return ar[0].trim()
+  return 'التحديث'
 }
 
-/** Light English feature → Arabic gloss for local offline mode. */
+function hashPick(seed, list) {
+  let h = 0
+  const s = String(seed || '')
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return list[h % list.length]
+}
+
+/** English feature / sentence → Arabic gloss for local offline mode. */
 function glossFeature(line) {
-  const s = String(line || '')
+  const s = String(line || '').trim()
+  if (!s) return null
+
   const rules = [
     [/build,\s*sign\s*&\s*install\s*ipas?/i, 'تبني وتوقّع وتثبّت ملفات IPA'],
     [/compile\s+swift.*iphone/i, 'تجمّع كود Swift وتطلّع IPA موقّع من جوالك'],
@@ -88,17 +130,62 @@ function glossFeature(line) {
     [/fixed\s+download.*buttons?/i, 'إصلاح أزرار التحميل والتوقيع والتثبيت'],
     [/blueprint\s+grid/i, 'تصميم شبكة مخطط أوضح'],
     [/directly\s+on\s+your\s+iphone/i, 'مباشرة من الآيفون'],
+    [/launch(ing)?\s+(today|now)|is\s+out!?/i, 'طلع الحين'],
+    [/free\s+(to\s+use|download|forever)/i, 'مجاني'],
+    [/open[\s-]?source/i, 'مفتوح المصدر'],
+    [/no\s+(account|signup|sign[\s-]?up)\s+needed/i, 'بدون حساب'],
+    [/dark\s+mode/i, 'وضع داكن'],
+    [/faster|speed|performance/i, 'أسرع وأسلس'],
+    [/bug\s*fix(es)?|fixed/i, 'إصلاحات مهمة'],
+    [/new\s+feature/i, 'ميزة جديدة'],
+    [/update(d)?|release(d)?/i, 'تحديث جديد'],
+    [/ai[\s-]?powered|with\s+ai/i, 'بمساعدة الذكاء'],
+    [/schedule|scheduling/i, 'جدولة'],
+    [/analytics|insights/i, 'أرقام وتحليلات'],
+    [/thread(s)?/i, 'ثريدات'],
   ]
   for (const [re, ar] of rules) {
     if (re.test(s)) return ar
   }
-  // Keep short latin product words, otherwise skip noisy english lines
-  if (isMostlyEnglish(s) && s.length > 40) return null
+
+  // Short English promo lines → soft Arabic meaning, keep product tokens
+  if (isMostlyEnglish(s)) {
+    if (s.length > 110) return null
+    if (/ship\s+your\s+ipa|ipa\s+today/i.test(s)) return 'انشر IPA حقك اليوم'
+    if (/why\s+wait/i.test(s)) return 'لا تؤجلها'
+    const brands = [...s.matchAll(/\b([A-Z][A-Za-z0-9]+(?:[A-Z][A-Za-z0-9]+)+)\b/g)].map((m) => m[1])
+    const brand = brands[0]
+    if (/ship|launch|release|try|get\s+started/i.test(s) && brand) {
+      return `جرّب ${brand} الحين`
+    }
+    if (brand) return `شيء مفيد من ${brand}`
+    return null
+  }
   return s
 }
 
-function arabicHook(name) {
-  return `تحديث يستاهل توقف عنده.\n\n${name}\n\nمو ضجيج إعلانات… شيء تقدر تجربه الحين.`
+function arabicHooks(name) {
+  return [
+    `تحديث يستاهل توقف عنده.\n\n${name}\n\nمو ضجيج إعلانات… شيء تقدر تجربه الحين.`,
+    `${name}\n\nباختصار؟ شيء يوفّر عليك وقت، ويخلّي التجربة أوضح.`,
+    `لو تتابع التحديثات بهدوء… هذا واحد يستاهل.\n\n${name}`,
+    `ما يحتاج ضجيج.\n\n${name}\n\nفكرة واضحة، ونتيجة تقدر تستخدمها.`,
+  ]
+}
+
+function arabicCtas(link, credit) {
+  const creditLine = credit ? `المصدر: ${credit}` : ''
+  if (link) {
+    return [
+      `تبي تجربه؟\n${link}\n\n${creditLine ? `${creditLine}\n` : ''}لو فادك احفظ التغريدة وارجع لها.`,
+      `الرابط هنا:\n${link}\n\n${creditLine ? `${creditLine}\n` : ''}جرّبه بهدوء وقل لي وش رأيك.`,
+      `${link}\n\n${creditLine ? `${creditLine}\n\n` : ''}لو استفدت، احفظها وشاركها مع اللي يهمه.`,
+    ]
+  }
+  return [
+    `${creditLine ? `${creditLine}\n\n` : ''}لو فادك احفظها وشاركها مع اللي يهمه.`,
+    `${creditLine ? `${creditLine}\n\n` : ''}خذ اللي تحتاجه، وكمّل يومك بهدوء.`,
+  ]
 }
 
 /** Build a fresh Saudi promo thread variation from any source text. */
@@ -114,31 +201,59 @@ export function localSaudiVariation(source) {
   const name = productName(raw)
 
   if (isMostlyEnglish(raw)) {
-    const featureCandidates = points.filter(
-      (p) =>
-        !/OUT!/i.test(p) &&
-        !/^by\s+@/i.test(p) &&
-        p.replace(/[^\w\s]/g, '').trim().toLowerCase() !== String(name).toLowerCase(),
-    )
-    const glossed = featureCandidates.map(glossFeature).filter(Boolean).slice(0, 4)
+    const featureCandidates = points.filter((p) => {
+      const plain = p.replace(/[^\w\s]/g, '').trim().toLowerCase()
+      const namePlain = String(name).replace(/[^\w\s]/g, '').trim().toLowerCase()
+      if (/OUT!/i.test(p)) return false
+      if (/^by\s+@/i.test(p)) return false
+      if (plain === namePlain) return false
+      if (
+        namePlain &&
+        plain.startsWith(namePlain.split(/\s+/)[0]) &&
+        plain.length < namePlain.length + 8
+      )
+        return false
+      return true
+    })
+
+    // Also mine sentences from non-bullet English paragraphs
+    const sentenceBits = raw
+      .split(/[\n.!?]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 12 && isMostlyEnglish(s) && !/^https?:/i.test(s) && !/^by\s+@/i.test(s))
+
+    const pool = [...featureCandidates, ...sentenceBits]
+
+    const glossed = []
+    const seen = new Set()
+    for (const p of pool) {
+      const g = glossFeature(p)
+      if (!g || seen.has(g) || g.startsWith('→ ') && g.length < 8) continue
+      seen.add(g)
+      glossed.push(g)
+      if (glossed.length >= 4) break
+    }
+
     const features =
       glossed.length > 0
         ? glossed.map((p, i) => `${i + 1}) ${p}`).join('\n')
         : '١) أوضح\n٢) أسهل\n٣) جاهز للاستخدام'
 
-    const valueSource =
-      featureCandidates.find((p) => /compile|swift|signed|ipa|iphone/i.test(p)) ||
-      featureCandidates.find((p) => /build|create|launch|release/i.test(p)) ||
-      ''
-    const valueLine = glossFeature(valueSource) || 'يختصر عليك تعب البناء والتوقيع والتثبيت.'
-
-    return [
-      arabicHook(name),
-      `باختصار:\n${valueLine}\n\nوش الجديد:\n${features}`,
-      link
-        ? `تبي تجربه؟\n${link}\n\n${credit ? `المصدر: ${credit}\n` : ''}لو فادك احفظ التغريدة وارجع لها.`
-        : `${credit ? `المصدر: ${credit}\n\n` : ''}لو فادك احفظها وشاركها مع اللي يهمه.`,
+    // Summary line — never copy a numbered feature verbatim
+    const summaries = [
+      'يختصر عليك التعب ويعطيك نتيجة أوضح.',
+      'الفكرة: أقل خطوات، ونتيجة جاهزة تستخدمها.',
+      'مو شرح طويل — تحديث تقدر تجربه بنفسك.',
     ]
+    let valueLine = hashPick(raw + 'value', summaries)
+    if (/ipa|swift|iphone|buildbox/i.test(raw)) {
+      valueLine = 'تبني وتوقّع وتثبّت… من جوالك مباشرة.'
+    }
+
+    const hook = hashPick(raw, arabicHooks(name))
+    const cta = hashPick(raw + 'cta', arabicCtas(link, credit))
+
+    return [hook, `باختصار:\n${valueLine}\n\nوش الجديد:\n${features}`, cta]
   }
 
   const { masked, restore } = preserveTokens(raw)
@@ -153,7 +268,7 @@ export function localSaudiVariation(source) {
     if (link && !out.some((c) => c.includes(link))) {
       out[out.length - 1] = `${out[out.length - 1]}\n\n${link}`
     }
-    if (!/لو فادك|احفظ|تابع/.test(out[out.length - 1])) {
+    if (!/لو فادك|احفظ|تابع|جرّب/.test(out[out.length - 1])) {
       out[out.length - 1] = `${out[out.length - 1]}\n\nلو فادك، احفظ التغريدة.`
     }
     return out
@@ -280,6 +395,5 @@ ${joined}`,
     if (split.length) return split
   }
 
-  // Local smart variation across the whole source
   return localSaudiVariation(list.join('\n\n'))
 }

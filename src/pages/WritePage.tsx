@@ -311,18 +311,17 @@ export function WritePage() {
   return (
     <div className="write-page">
       <header className="write-hero">
-        <p className="write-kicker">هدوء · اكتب بوضوح</p>
         <h1 className="write-title">
-          {step === 'ask' && 'وش تبي تسوي الحين؟'}
-          {step === 'input' && (intentMeta?.title || 'كمّل التفاصيل')}
-          {step === 'edit' && 'عدّل الثريد بهدوء'}
-          {step === 'ship' && 'متى ينزل؟'}
+          {step === 'ask' && 'وش تبي تسوي؟'}
+          {step === 'input' && (intentMeta?.title || 'كمّل')}
+          {step === 'edit' && 'راجع وعدّل'}
+          {step === 'ship' && 'انشر أو جدول'}
         </h1>
         <p className="write-sub">
-          {step === 'ask' && 'اختر شيء واحد. نمشي معك خطوة خطوة.'}
+          {step === 'ask' && 'اختر خطوة واحدة.'}
           {step === 'input' && intentMeta?.hint}
-          {step === 'edit' && 'راجع النص، أضف صورة، أو قسّم الثريد.'}
-          {step === 'ship' && 'انشر الحين أو جدول لأقرب وقت فاضي.'}
+          {step === 'edit' && 'النص، الصور، وترتيب الثريد.'}
+          {step === 'ship' && 'الحين، أو أقرب وقت فاضي.'}
         </p>
         <div className="write-steps" aria-hidden>
           {['النوع', 'المدخل', 'التحرير', 'النشر'].map((label, i) => (
