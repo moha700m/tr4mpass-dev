@@ -26,19 +26,12 @@
   min-height: 38px;
 }
 
-.hint {
+.plan-line {
   margin: 0;
-  font-size: 0.85rem;
-}
-
-.plan-list {
-  margin: 0;
-  padding-inline-start: 1.2rem;
-  color: var(--text-soft);
-}
-
-.plan-current {
-  align-self: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .theme-row {
@@ -47,11 +40,7 @@
   gap: 8px;
 }
 
-.compare {
-  text-align: center;
-  font-size: 0.85rem;
-}
-
-.more-card code {
-  font-size: 0.85em;
+.logout-btn {
+  width: 100%;
+  margin-top: 4px;
 }

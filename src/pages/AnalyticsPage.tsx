@@ -20,10 +20,10 @@ export function AnalyticsPage() {
   if (!session?.isAuthenticated) {
     return (
       <div className="analytics-page rise">
-        <h1 className="page-title">التحليلات</h1>
-        <p className="page-sub">تُجمع أرقام كل منشور بعد ٣ أيام من نشره.</p>
+        <h1 className="page-title">أرقام</h1>
+        <p className="page-sub">مشاهدات وتفاعل بعد ٣ أيام من النشر.</p>
         <button type="button" className="btn btn-primary" onClick={connectX}>
-          اربط X لعرض التحليلات
+          اربط X
         </button>
       </div>
     )
@@ -31,8 +31,8 @@ export function AnalyticsPage() {
 
   return (
     <div className="analytics-page rise">
-      <h1 className="page-title">التحليلات</h1>
-      <p className="page-sub">تُجمع أرقام كل منشور بعد ٣ أيام من نشره.</p>
+      <h1 className="page-title">أرقام</h1>
+      <p className="page-sub">مشاهدات وتفاعل بعد ٣ أيام من النشر.</p>
 
       <div className="filters row">
         {(['30d', '90d', '1y'] as AnalyticsRange[]).map((r) => (

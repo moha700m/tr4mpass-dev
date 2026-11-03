@@ -11,6 +11,7 @@ export function LandingPage() {
       <div className="landing-sky" aria-hidden>
         <span className="landing-orb landing-orb-a" />
         <span className="landing-orb landing-orb-b" />
+        <span className="landing-orb landing-orb-c" />
         <span className="landing-grain" />
         <div className="landing-thread-field">
           <span className="field-line field-line-1" />
@@ -21,7 +22,6 @@ export function LandingPage() {
       </div>
 
       <header className="landing-nav">
-        <span className="landing-nav-brand">هدوء</span>
         <Link to="/plans" className="landing-nav-link">
           الخطط
         </Link>
@@ -41,15 +41,27 @@ export function LandingPage() {
             </button>
           )}
         </div>
+        <a href="#more" className="landing-scroll" aria-label="المزيد">
+          <span />
+        </a>
       </main>
 
-      <section className="landing-rest">
+      <section id="more" className="landing-rest">
+        <p className="landing-rest-kicker">كيف يشتغل</p>
         <h2>ثلاثة أشياء فقط</h2>
-        <p className="landing-rest-sub">فكرة → صياغة سعودية → نشر أو جدولة.</p>
         <ul className="landing-points">
-          <li>استورد تغريدة إنجليزية واطلع بنسخة سعودية مختلفة</li>
-          <li>معاينة تشبه X قبل ما تنشر</li>
-          <li>جدولة هادئة على أقرب وقت فارغ</li>
+          <li>
+            <strong>استورد</strong>
+            <span>رابط X → نسخة سعودية مختلفة</span>
+          </li>
+          <li>
+            <strong>راجع</strong>
+            <span>معاينة قبل ما تنشر</span>
+          </li>
+          <li>
+            <strong>انشر</strong>
+            <span>الحين أو أقرب وقت فاضي</span>
+          </li>
         </ul>
       </section>
     </div>

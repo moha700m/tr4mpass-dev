@@ -10,9 +10,9 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card surface rise">
-        <div className="brand-mark lg" />
-        <h1>دخول هدوء</h1>
-        <p className="muted">اربط حساب X الرسمي فقط. ما نطلب كلمة المرور أبداً.</p>
+        <p className="login-brand">هدوء</p>
+        <h1>ادخل بهدوء</h1>
+        <p className="muted">ربط رسمي بحساب X فقط.</p>
 
         {error && (
           <p className="banner warn">
@@ -22,7 +22,7 @@ export function LoginPage() {
 
         {session?.isAuthenticated ? (
           <Link to="/write" className="btn btn-primary">
-            أنت داخل · اذهب للكتابة
+            افتح الكتابة
           </Link>
         ) : (
           <button type="button" className="btn btn-primary" onClick={connectX}>

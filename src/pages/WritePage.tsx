@@ -32,11 +32,11 @@ const INTENTS: {
   hint: string
   icon: typeof Wand2
 }[] = [
-  { id: 'idea', title: 'عندي فكرة', hint: 'حوّلها لثريد جاهز', icon: Wand2 },
-  { id: 'import', title: 'عندي رابط X', hint: 'استورد وأعد الصياغة سعودي', icon: Link2 },
-  { id: 'improve', title: 'حسّن نصي', hint: 'اخعله أقوى وأوضح', icon: Sparkles },
-  { id: 'saudi', title: 'لهجة سعودية', hint: 'صيّغ النص بلهجتنا', icon: Languages },
-  { id: 'blank', title: 'أكتب بنفسي', hint: 'صندوق فاضي بدون ذكاء', icon: PenLine },
+  { id: 'import', title: 'رابط X', hint: 'استورد وصِغ سعودي', icon: Link2 },
+  { id: 'idea', title: 'فكرة', hint: 'حوّلها لثريد', icon: Wand2 },
+  { id: 'improve', title: 'حسّن نصي', hint: 'أقوى وأوضح', icon: Sparkles },
+  { id: 'saudi', title: 'لهجة سعودية', hint: 'بأسلوبنا', icon: Languages },
+  { id: 'blank', title: 'أكتب بنفسي', hint: 'بدون ذكاء', icon: PenLine },
 ]
 
 function fileToBase64(file: File) {

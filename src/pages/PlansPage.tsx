@@ -10,7 +10,7 @@ export function PlansPage() {
   return (
     <div className="plans-page rise">
       <h1 className="page-title">الخطط</h1>
-      <p className="page-sub">بسيط: ابدأ مجاناً، وارتَقِ لما تحتاج مساحة أكبر.</p>
+      <p className="page-sub">ابدأ مجاناً. ارتَقِ لما تحتاج أكثر.</p>
 
       <div className="plans-grid">
         <article className="surface plan-card">
@@ -21,48 +21,38 @@ export function PlansPage() {
               <Check size={16} /> حساب واحد
             </li>
             <li>
-              <Check size={16} /> منشورات مجدولة محدودة
+              <Check size={16} /> جدولة ٧ أيام
             </li>
             <li>
-              <Check size={16} /> جدولة حتى ٧ أيام
-            </li>
-            <li>
-              <Check size={16} /> محاولات ذكاء محدودة
+              <Check size={16} /> ذكاء محدود
             </li>
           </ul>
           {planId === 'free' ? (
             <span className="chip chip-accent">خطتك الحالية</span>
           ) : (
             <Link to="/write" className="btn btn-ghost">
-              العودة للكتابة
+              الكتابة
             </Link>
           )}
         </article>
 
         <article className="surface plan-card featured">
-          <div className="chip chip-accent">براند محمد</div>
           <h2>{PLANS.pro.name}</h2>
           <p className="price">
             {PRO_PRICE_SAR} ر.س <span>/ شهر</span>
           </p>
           <ul>
             <li>
-              <Check size={16} /> منشورات وثريدات بلا حدود
-            </li>
-            <li>
-              <Check size={16} /> جدولة حتى سنة
+              <Check size={16} /> بلا حدود تقريباً
             </li>
             <li>
               <Check size={16} /> فيديو وGIF
             </li>
             <li>
-              <Check size={16} /> ذكاء اصطناعي بلا حدود
-            </li>
-            <li>
               <Check size={16} /> حتى ٣ حسابات
             </li>
             <li>
-              <Check size={16} /> استيراد جماعي بلا قيود
+              <Check size={16} /> استيراد جماعي
             </li>
           </ul>
           <button

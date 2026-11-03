@@ -63,9 +63,9 @@ export function CalendarPage() {
     return (
       <div className="calendar-page rise">
         <h1 className="page-title">التقويم</h1>
-        <p className="page-sub">أسبوع هادئ — اسحب المنشور لتغيير يومه.</p>
+        <p className="page-sub">اسحب المنشور لتغيير يومه.</p>
         <button type="button" className="btn btn-primary" onClick={connectX}>
-          اربط X لعرض التقويم
+          اربط X
         </button>
       </div>
     )
@@ -74,7 +74,7 @@ export function CalendarPage() {
   return (
     <div className="calendar-page rise">
       <h1 className="page-title">التقويم</h1>
-      <p className="page-sub">أسبوع هادئ — اسحب المنشور لتغيير يومه.</p>
+      <p className="page-sub">اسحب المنشور لتغيير يومه.</p>
       {note && <p className="muted">{note}</p>}
 
       <div className="week-nav row">
