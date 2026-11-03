@@ -70,12 +70,12 @@ export function MorePage() {
         </p>
         {!session?.xConfigured && (
           <p className="banner warn">
-            لتشغيل الربط الحقيقي: أضف <code>X_CLIENT_ID</code> و<code>X_CLIENT_SECRET</code> في
-            Environment Variables على Vercel من تطبيقك في{' '}
+            لتشغيل الربط: أضف <code>X_API_KEY</code> و<code>X_API_SECRET</code> في Environment
+            Variables على Render (من Keys and tokens في{' '}
             <a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noreferrer">
               Developer Console
             </a>
-            .
+            ).
           </p>
         )}
       </section>

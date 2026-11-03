@@ -1,3 +1,5 @@
+import { isOAuth1Configured, oauth1Fetch, invalidateToken } from './oauth1.mjs'
+
 function getXClientId() {
   return (process.env.X_CLIENT_ID || '').trim()
 }
@@ -5,14 +7,64 @@ function getXClientSecret() {
   return (process.env.X_CLIENT_SECRET || '').trim()
 }
 
+/** Prefer OAuth 1.0a (API Key/Secret) — avoids broken OAuth 2.0 consent on many X apps. */
 export function isXConfigured() {
-  return Boolean(getXClientId())
+  return isOAuth1Configured() || Boolean(getXClientId())
+}
+
+export function usesOAuth1() {
+  return isOAuth1Configured()
 }
 
 export function basicAuthHeader() {
   const secret = getXClientSecret()
   if (!secret) return null
   return `Basic ${Buffer.from(`${getXClientId()}:${secret}`).toString('base64')}`
+}
+
+function credsOf(accountOrToken) {
+  if (!accountOrToken) return null
+  if (typeof accountOrToken === 'string') {
+    return { accessToken: accountOrToken, accessTokenSecret: null }
+  }
+  return {
+    accessToken: accountOrToken.accessToken,
+    accessTokenSecret: accountOrToken.accessTokenSecret || null,
+  }
+}
+
+async function xFetch(method, url, accountOrToken, { body, headers = {} } = {}) {
+  const creds = credsOf(accountOrToken)
+  if (!creds?.accessToken) throw new Error('لا يوجد توكن X')
+
+  if (creds.accessTokenSecret) {
+    return oauth1Fetch(method, url, {
+      token: creds.accessToken,
+      tokenSecret: creds.accessTokenSecret,
+      body,
+      headers,
+    })
+  }
+
+  const init = {
+    method,
+    headers: {
+      Authorization: `Bearer ${creds.accessToken}`,
+      ...headers,
+    },
+  }
+  if (body !== undefined) {
+    if (typeof body === 'string' || body instanceof URLSearchParams || body instanceof FormData) {
+      init.body = body
+      if (body instanceof URLSearchParams && !init.headers['Content-Type']) {
+        init.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+      }
+    } else {
+      init.headers['Content-Type'] = init.headers['Content-Type'] || 'application/json'
+      init.body = JSON.stringify(body)
+    }
+  }
+  return fetch(url, init)
 }
 
 export async function refreshAccessToken(refreshToken) {
@@ -28,6 +80,8 @@ export async function refreshAccessToken(refreshToken) {
 }
 
 export async function ensureFreshAccount(account) {
+  // OAuth 1.0a user tokens do not expire
+  if (account.accessTokenSecret) return account
   if (account.refreshToken && account.expiresAt && account.expiresAt < Date.now() + 60_000) {
     const tokens = await refreshAccessToken(account.refreshToken)
     account.accessToken = tokens.access_token
@@ -38,32 +92,49 @@ export async function ensureFreshAccount(account) {
   return account
 }
 
-export async function createTweet(accessToken, text, { replyToId, mediaIds } = {}) {
+export async function revokeAccountToken(account) {
+  if (account.accessTokenSecret) {
+    await invalidateToken(account.accessToken, account.accessTokenSecret)
+    return
+  }
+  const body = new URLSearchParams({ token: account.accessToken })
+  const headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
+  const basic = basicAuthHeader()
+  if (basic) headers.Authorization = basic
+  else body.set('client_id', getXClientId())
+  await fetch('https://api.x.com/2/oauth2/revoke', { method: 'POST', headers, body })
+}
+
+export async function fetchXUser(accountOrToken) {
+  const res = await xFetch(
+    'GET',
+    'https://api.x.com/2/users/me?user.fields=profile_image_url,name,username',
+    accountOrToken,
+  )
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.detail || data.title || 'فشل جلب حساب X')
+  return data.data
+}
+
+export async function createTweet(accountOrToken, text, { replyToId, mediaIds } = {}) {
   const payload = { text: text || '' }
   if (replyToId) payload.reply = { in_reply_to_tweet_id: replyToId }
   if (mediaIds?.length) payload.media = { media_ids: mediaIds }
 
-  const res = await fetch('https://api.x.com/2/tweets', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
+  const res = await xFetch('POST', 'https://api.x.com/2/tweets', accountOrToken, { body: payload })
   const data = await res.json()
   if (!res.ok) throw new Error(data.detail || data.title || 'فشل نشر المنشور')
   return data.data
 }
 
-export async function createThread(accessToken, parts) {
+export async function createThread(accountOrToken, parts) {
   const ids = []
   let previousId
   for (const part of parts) {
     const text = typeof part === 'string' ? part : part.text
     const mediaIds = typeof part === 'string' ? undefined : part.mediaIds
     if (!String(text || '').trim() && !mediaIds?.length) continue
-    const tweet = await createTweet(accessToken, text || '', {
+    const tweet = await createTweet(accountOrToken, text || '', {
       replyToId: previousId,
       mediaIds,
     })
@@ -73,31 +144,27 @@ export async function createThread(accessToken, parts) {
   return ids
 }
 
-/** Simple media upload via X v1.1 INIT/APPEND/FINALIZE with OAuth2 bearer (when supported). */
-export async function uploadMedia(accessToken, buffer, mimeType) {
+/** Media upload via X v1.1 INIT/APPEND/FINALIZE (OAuth 1.0a preferred). */
+export async function uploadMedia(accountOrToken, buffer, mimeType) {
   const mediaCategory = mimeType.startsWith('video/')
     ? 'tweet_video'
     : mimeType === 'image/gif'
       ? 'tweet_gif'
       : 'tweet_image'
 
-  // Prefer v2 simple upload for images
-  if (mediaCategory === 'tweet_image') {
+  // Prefer v2 simple upload for images when using bearer (oauth2)
+  const creds = credsOf(accountOrToken)
+  if (!creds.accessTokenSecret && mediaCategory === 'tweet_image') {
     const form = new FormData()
     form.append('media', new Blob([buffer], { type: mimeType }), 'upload')
     form.append('media_category', mediaCategory)
-    const res = await fetch('https://api.x.com/2/media/upload', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: form,
-    })
+    const res = await xFetch('POST', 'https://api.x.com/2/media/upload', accountOrToken, { body: form })
     const data = await res.json().catch(() => ({}))
     if (res.ok && (data.data?.id || data.media_id_string || data.id)) {
       return String(data.data?.id || data.media_id_string || data.id)
     }
   }
 
-  // Fallback: chunked v1.1
   const totalBytes = buffer.byteLength || buffer.length
   const initBody = new URLSearchParams({
     command: 'INIT',
@@ -105,12 +172,7 @@ export async function uploadMedia(accessToken, buffer, mimeType) {
     media_type: mimeType,
     media_category: mediaCategory,
   })
-  const initRes = await fetch('https://upload.twitter.com/1.1/media/upload.json', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+  const initRes = await xFetch('POST', 'https://upload.twitter.com/1.1/media/upload.json', accountOrToken, {
     body: initBody,
   })
   const initData = await initRes.json()
@@ -126,9 +188,7 @@ export async function uploadMedia(accessToken, buffer, mimeType) {
     form.append('media_id', mediaId)
     form.append('segment_index', String(segment++))
     form.append('media', new Blob([slice]), 'chunk')
-    const appendRes = await fetch('https://upload.twitter.com/1.1/media/upload.json', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
+    const appendRes = await xFetch('POST', 'https://upload.twitter.com/1.1/media/upload.json', accountOrToken, {
       body: form,
     })
     if (!appendRes.ok) {
@@ -138,25 +198,20 @@ export async function uploadMedia(accessToken, buffer, mimeType) {
   }
 
   const finBody = new URLSearchParams({ command: 'FINALIZE', media_id: mediaId })
-  const finRes = await fetch('https://upload.twitter.com/1.1/media/upload.json', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+  const finRes = await xFetch('POST', 'https://upload.twitter.com/1.1/media/upload.json', accountOrToken, {
     body: finBody,
   })
   const finData = await finRes.json()
   if (!finRes.ok) throw new Error(finData.errors?.[0]?.message || 'فشل إنهاء رفع الوسائط')
 
-  // Wait for processing if needed
   if (finData.processing_info) {
     let info = finData.processing_info
     while (info.state === 'pending' || info.state === 'in_progress') {
       await new Promise((r) => setTimeout(r, (info.check_after_secs || 2) * 1000))
-      const st = await fetch(
+      const st = await xFetch(
+        'GET',
         `https://upload.twitter.com/1.1/media/upload.json?command=STATUS&media_id=${mediaId}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } },
+        accountOrToken,
       )
       const stData = await st.json()
       info = stData.processing_info || { state: 'succeeded' }
@@ -171,13 +226,14 @@ export function extractStatusId(url) {
   return m?.[1] || null
 }
 
-export async function fetchThreadByUrl(accessToken, url) {
+export async function fetchThreadByUrl(accountOrToken, url) {
   const id = extractStatusId(url)
   if (!id) throw new Error('رابط غير صالح')
 
-  const rootRes = await fetch(
+  const rootRes = await xFetch(
+    'GET',
     `https://api.x.com/2/tweets/${id}?tweet.fields=author_id,conversation_id,created_at,attachments,entities,text&expansions=attachments.media_keys&media.fields=url,preview_image_url,type,variants`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
+    accountOrToken,
   )
   const rootData = await rootRes.json()
   if (!rootRes.ok) throw new Error(rootData.detail || rootData.title || 'فشل جلب التغريدة')
@@ -185,10 +241,10 @@ export async function fetchThreadByUrl(accessToken, url) {
   const conversationId = rootData.data.conversation_id || id
   const authorId = rootData.data.author_id
 
-  // Search conversation replies by author (best-effort thread reconstruction)
-  const search = await fetch(
-    `https://api.x.com/2/tweets/search/recent?query=conversation_id:${conversationId} from:${authorId}&max_results=100&tweet.fields=author_id,conversation_id,created_at,in_reply_to_user_id,referenced_tweets,attachments,text&expansions=attachments.media_keys&media.fields=url,preview_image_url,type,variants`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
+  const search = await xFetch(
+    'GET',
+    `https://api.x.com/2/tweets/search/recent?query=${encodeURIComponent(`conversation_id:${conversationId} from:${authorId}`)}&max_results=100&tweet.fields=author_id,conversation_id,created_at,in_reply_to_user_id,referenced_tweets,attachments,text&expansions=attachments.media_keys&media.fields=url,preview_image_url,type,variants`,
+    accountOrToken,
   )
   const searchData = await search.json()
   const tweets = [rootData.data]
@@ -198,7 +254,6 @@ export async function fetchThreadByUrl(accessToken, url) {
     }
   }
 
-  // Sort by created_at
   tweets.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at))
 
   const mediaByKey = new Map()
@@ -219,12 +274,13 @@ export async function fetchThreadByUrl(accessToken, url) {
   })
 }
 
-export async function fetchTweetMetrics(accessToken, tweetIds) {
+export async function fetchTweetMetrics(accountOrToken, tweetIds) {
   if (!tweetIds.length) return []
   const ids = tweetIds.slice(0, 100).join(',')
-  const res = await fetch(
+  const res = await xFetch(
+    'GET',
     `https://api.x.com/2/tweets?ids=${ids}&tweet.fields=public_metrics,non_public_metrics,organic_metrics`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
+    accountOrToken,
   )
   const data = await res.json()
   if (!res.ok) throw new Error(data.detail || data.title || 'فشل جلب الإحصائيات')

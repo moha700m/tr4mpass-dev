@@ -29,15 +29,24 @@ import {
 } from './lib/posts.mjs'
 import { improveText, rewriteThreadParts, toSaudi, writeThreadFromIdea } from './lib/ai.mjs'
 import {
+  authorizeUrl,
+  getAccessToken,
+  getRequestToken,
+  isOAuth1Configured,
+} from './lib/oauth1.mjs'
+import {
   basicAuthHeader,
   createThread,
   ensureFreshAccount,
   extractStatusId,
   fetchThreadByUrl,
   fetchTweetMetrics,
+  fetchXUser,
   getXClientId,
   isXConfigured,
+  revokeAccountToken,
   uploadMedia,
+  usesOAuth1,
 } from './lib/x.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -132,24 +141,6 @@ async function exchangeCodeForToken({ code, redirectUri, codeVerifier }) {
   return data
 }
 
-async function revokeToken(token) {
-  const body = new URLSearchParams({ token })
-  const headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
-  const basic = basicAuthHeader()
-  if (basic) headers.Authorization = basic
-  else body.set('client_id', getXClientId())
-  await fetch('https://api.x.com/2/oauth2/revoke', { method: 'POST', headers, body })
-}
-
-async function fetchXUser(accessToken) {
-  const res = await fetch('https://api.x.com/2/users/me?user.fields=profile_image_url,name,username', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.detail || data.title || 'فشل جلب حساب X')
-  return data.data
-}
-
 async function sessionCookie(session) {
   return makeCookie(COOKIE, await seal(session), 60 * 60 * 24 * 30)
 }
@@ -174,7 +165,7 @@ async function consumeAi(session) {
   return bumpUsage(session.id, 'ai', 1)
 }
 
-async function resolveMediaIds(accessToken, part) {
+async function resolveMediaIds(account, part) {
   const mediaIds = [...(part.mediaIds || [])]
   if (!Array.isArray(part.media)) return mediaIds
   for (const m of part.media) {
@@ -184,7 +175,7 @@ async function resolveMediaIds(accessToken, part) {
     }
     if (m.base64 && m.mimeType) {
       const buf = Buffer.from(m.base64, 'base64')
-      mediaIds.push(await uploadMedia(accessToken, buf, m.mimeType))
+      mediaIds.push(await uploadMedia(account, buf, m.mimeType))
       continue
     }
     if (m.url && /^https?:\/\//i.test(m.url)) {
@@ -193,7 +184,7 @@ async function resolveMediaIds(accessToken, part) {
         if (!res.ok) continue
         const mimeType = res.headers.get('content-type') || m.mimeType || 'image/jpeg'
         const buf = Buffer.from(await res.arrayBuffer())
-        mediaIds.push(await uploadMedia(accessToken, buf, mimeType.split(';')[0]))
+        mediaIds.push(await uploadMedia(account, buf, mimeType.split(';')[0]))
       } catch {
         // skip broken media
       }
@@ -209,11 +200,10 @@ async function publishParts(session, accountId, parts) {
   const prepared = []
   for (const part of parts) {
     const text = typeof part === 'string' ? part : part.text || ''
-    const mediaIds =
-      typeof part === 'string' ? [] : await resolveMediaIds(account.accessToken, part)
+    const mediaIds = typeof part === 'string' ? [] : await resolveMediaIds(account, part)
     prepared.push({ text, mediaIds })
   }
-  const ids = await createThread(account.accessToken, prepared)
+  const ids = await createThread(account, prepared)
   return { ids, account, session }
 }
 
@@ -231,7 +221,7 @@ async function flushDuePosts(accountLookup) {
       }
       await ensureFreshAccount(account)
       const ids = await createThread(
-        account.accessToken,
+        account,
         post.parts.map((p) => ({
           text: p.text,
           mediaIds: (p.media || []).map((m) => m.mediaId).filter(Boolean),
@@ -279,7 +269,7 @@ async function collectMetricsForSession(session) {
       const account = session.accounts.find((a) => a.id === post.accountId)
       if (!account) continue
       await ensureFreshAccount(account)
-      const rows = await fetchTweetMetrics(account.accessToken, post.tweetIds || [])
+      const rows = await fetchTweetMetrics(account, post.tweetIds || [])
       const agg = rows.reduce(
         (a, r) => {
           a.views += r.views
@@ -339,7 +329,7 @@ async function handleApi(req, res, url) {
     if (session) {
       for (const account of session.accounts) {
         try {
-          await revokeToken(account.accessToken)
+          await revokeAccountToken(account)
         } catch {
           // ignore
         }
@@ -353,60 +343,113 @@ async function handleApi(req, res, url) {
       return sendJson(res, 503, { error: 'ربط X غير مفعّل بعد.', setup: true })
     }
     const session = (await loadSession(req)) || createSession()
+    const redirectUri = `${originFrom(req)}/api/auth/x/callback`
+
+    // Prefer OAuth 1.0a — avoids "You weren’t able to give access" on broken OAuth 2.0 apps
+    if (usesOAuth1() || isOAuth1Configured()) {
+      try {
+        const { oauthToken, oauthTokenSecret } = await getRequestToken(redirectUri)
+        return redirect(res, authorizeUrl(oauthToken), [
+          await sessionCookie(session),
+          makeCookie(
+            OAUTH_COOKIE,
+            await seal({ mode: 'oauth1', oauthToken, oauthTokenSecret, redirectUri }),
+            600,
+          ),
+        ])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'فشل بدء ربط X'
+        return sendJson(res, 502, { error: message })
+      }
+    }
+
+    // Fallback: OAuth 2.0 PKCE
     const { verifier, challenge } = await createPkcePair()
     const state = randomString(32)
-    const redirectUri = `${originFrom(req)}/api/auth/x/callback`
     const authorize = new URL('https://x.com/i/oauth2/authorize')
     authorize.searchParams.set('response_type', 'code')
     authorize.searchParams.set('client_id', getXClientId())
     authorize.searchParams.set('redirect_uri', redirectUri)
-    // Avoid media.write — many X apps reject consent when that scope isn't enabled
-    authorize.searchParams.set(
-      'scope',
-      'tweet.read tweet.write users.read offline.access',
-    )
+    authorize.searchParams.set('scope', 'tweet.read tweet.write users.read offline.access')
     authorize.searchParams.set('state', state)
     authorize.searchParams.set('code_challenge', challenge)
     authorize.searchParams.set('code_challenge_method', 'S256')
     return redirect(res, authorize.toString(), [
       await sessionCookie(session),
-      makeCookie(OAUTH_COOKIE, await seal({ verifier, state, redirectUri }), 600),
+      makeCookie(OAUTH_COOKIE, await seal({ mode: 'oauth2', verifier, state, redirectUri }), 600),
     ])
   }
 
   if (pathname === '/api/auth/x/callback' && req.method === 'GET') {
     const origin = originFrom(req)
     const error = url.searchParams.get('error')
-    const code = url.searchParams.get('code')
-    const state = url.searchParams.get('state')
     if (error) return redirect(res, `${origin}/login?error=${encodeURIComponent(error)}`)
-    if (!code || !state) return sendJson(res, 400, { error: 'طلب غير مكتمل من X' })
+
     const oauthRaw = parseCookies(req.headers.cookie)[OAUTH_COOKIE]
     const oauth = oauthRaw ? await unseal(oauthRaw) : null
-    if (!oauth?.verifier || !oauth.redirectUri || oauth.state !== state) {
-      return redirect(res, `${origin}/login?error=invalid_state`)
-    }
     let session = (await loadSession(req)) || createSession()
+
     try {
-      const tokens = await exchangeCodeForToken({
-        code,
-        redirectUri: oauth.redirectUri,
-        codeVerifier: oauth.verifier,
-      })
-      const user = await fetchXUser(tokens.access_token)
-      const account = {
-        id: user.id,
-        handle: user.username,
-        name: user.name,
-        avatarUrl:
-          user.profile_image_url?.replace('_normal', '_400x400') ||
-          `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`,
-        connectedAt: new Date().toISOString(),
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiresAt: Date.now() + tokens.expires_in * 1000,
-        scope: tokens.scope,
+      let account
+
+      // OAuth 1.0a callback: oauth_token + oauth_verifier
+      const oauthToken = url.searchParams.get('oauth_token')
+      const oauthVerifier = url.searchParams.get('oauth_verifier')
+      if (oauthToken && oauthVerifier) {
+        if (!oauth?.oauthTokenSecret || oauth.oauthToken !== oauthToken) {
+          return redirect(res, `${origin}/login?error=invalid_state`)
+        }
+        const tokens = await getAccessToken({
+          oauthToken,
+          oauthTokenSecret: oauth.oauthTokenSecret,
+          oauthVerifier,
+        })
+        const user = await fetchXUser({
+          accessToken: tokens.accessToken,
+          accessTokenSecret: tokens.accessTokenSecret,
+        })
+        account = {
+          id: user.id || tokens.userId,
+          handle: user.username || tokens.screenName,
+          name: user.name || tokens.screenName,
+          avatarUrl:
+            user.profile_image_url?.replace('_normal', '_400x400') ||
+            `https://api.dicebear.com/9.x/initials/svg?seed=${user.username || tokens.screenName}`,
+          connectedAt: new Date().toISOString(),
+          accessToken: tokens.accessToken,
+          accessTokenSecret: tokens.accessTokenSecret,
+          authMode: 'oauth1',
+        }
+      } else {
+        // OAuth 2.0 PKCE callback
+        const code = url.searchParams.get('code')
+        const state = url.searchParams.get('state')
+        if (!code || !state) return sendJson(res, 400, { error: 'طلب غير مكتمل من X' })
+        if (!oauth?.verifier || !oauth.redirectUri || oauth.state !== state) {
+          return redirect(res, `${origin}/login?error=invalid_state`)
+        }
+        const tokens = await exchangeCodeForToken({
+          code,
+          redirectUri: oauth.redirectUri,
+          codeVerifier: oauth.verifier,
+        })
+        const user = await fetchXUser(tokens.access_token)
+        account = {
+          id: user.id,
+          handle: user.username,
+          name: user.name,
+          avatarUrl:
+            user.profile_image_url?.replace('_normal', '_400x400') ||
+            `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`,
+          connectedAt: new Date().toISOString(),
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: Date.now() + tokens.expires_in * 1000,
+          scope: tokens.scope,
+          authMode: 'oauth2',
+        }
       }
+
       const maxAccounts = planOf(session).maxAccounts
       const idx = session.accounts.findIndex((a) => a.id === account.id)
       if (idx >= 0) session.accounts[idx] = account
@@ -431,7 +474,7 @@ async function handleApi(req, res, url) {
     const account = session.accounts.find((a) => a.id === body.accountId)
     if (!account) return sendJson(res, 404, { error: 'الحساب غير موجود' })
     try {
-      await revokeToken(account.accessToken)
+      await revokeAccountToken(account)
     } catch {
       // ignore
     }
@@ -508,7 +551,7 @@ async function handleApi(req, res, url) {
         session.accounts.find((a) => a.id === (body.accountId || session.activeAccountId)) ||
         session.accounts[0]
       await ensureFreshAccount(account)
-      const thread = await fetchThreadByUrl(account.accessToken, body.url)
+      const thread = await fetchThreadByUrl(account, body.url)
       const rewritten = await rewriteThreadParts(
         thread.map((t) => t.text),
         { saudi: true },
@@ -539,7 +582,7 @@ async function handleApi(req, res, url) {
       await ensureFreshAccount(account)
       const buf = Buffer.from(body.base64 || '', 'base64')
       if (!buf.length) return sendJson(res, 400, { error: 'لا توجد بيانات وسائط' })
-      const mediaId = await uploadMedia(account.accessToken, buf, mimeType)
+      const mediaId = await uploadMedia(account, buf, mimeType)
       return sendJson(res, 200, { mediaId }, [await sessionCookie(session)])
     } catch (err) {
       return sendJson(res, 502, { error: err.message || 'فشل رفع الوسائط' })
@@ -666,7 +709,7 @@ async function handleApi(req, res, url) {
       let cursorPosts = await listPosts(session.id)
       const created = []
       for (const link of links) {
-        const thread = await fetchThreadByUrl(account.accessToken, link)
+        const thread = await fetchThreadByUrl(account, link)
         let texts = thread.map((t) => t.text)
         if (body.rewrite !== false) {
           texts = await rewriteThreadParts(texts, { saudi: true })

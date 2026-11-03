@@ -67,7 +67,9 @@ export function publicSession(session, usage = { aiAttemptsUsed: 0, bulkImportsU
     aiAttemptsUsed: usage.aiAttemptsUsed || 0,
     bulkImportsUsed: usage.bulkImportsUsed || 0,
     activeAccountId: session.activeAccountId,
-    accounts: session.accounts.map(({ accessToken, refreshToken, expiresAt, scope, ...acc }) => acc),
+    accounts: session.accounts.map(
+      ({ accessToken, accessTokenSecret, refreshToken, expiresAt, scope, ...acc }) => acc,
+    ),
   }
 }
 
