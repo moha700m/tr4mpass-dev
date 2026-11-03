@@ -51,8 +51,11 @@ async function llm(system, user) {
       ],
     }),
   })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error?.message || 'فشل طلب الذكاء')
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    console.error('openai failed', res.status, data?.error?.message || data)
+    return null
+  }
   return data.choices?.[0]?.message?.content?.trim() || null
 }
 

@@ -122,8 +122,16 @@ export async function createTweet(accountOrToken, text, { replyToId, mediaIds } 
   if (mediaIds?.length) payload.media = { media_ids: mediaIds }
 
   const res = await xFetch('POST', 'https://api.x.com/2/tweets', accountOrToken, { body: payload })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.detail || data.title || 'فشل نشر المنشور')
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const detail = String(data.detail || data.title || '')
+    if (res.status === 402 || /credits? depleted/i.test(detail)) {
+      throw new Error(
+        'رصيد واجهة X خلص. من Developer Portal ارفع خطة الـ API أو انتظر تجديد الرصيد عشان تقدر تنشر.',
+      )
+    }
+    throw new Error(detail || 'فشل نشر المنشور')
+  }
   return data.data
 }
 
@@ -226,52 +234,140 @@ export function extractStatusId(url) {
   return m?.[1] || null
 }
 
+function mapXApiMedia(m) {
+  return {
+    type: m.type === 'video' ? 'video' : m.type === 'animated_gif' ? 'gif' : 'image',
+    url: m.url || m.preview_image_url || m.variants?.find((v) => v.content_type === 'video/mp4')?.url,
+  }
+}
+
+function splitLongText(text) {
+  const clean = String(text || '')
+    .replace(/\u200b/g, '')
+    .trim()
+  if (!clean) return []
+  if ([...clean].length <= 280) return [clean]
+
+  const blocks = clean
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+  if (blocks.length > 1) return blocks
+
+  const lines = clean.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (lines.length <= 1) return [clean]
+
+  const parts = []
+  let buf = ''
+  for (const line of lines) {
+    const next = buf ? `${buf}\n${line}` : line
+    if ([...next].length > 280 && buf) {
+      parts.push(buf)
+      buf = line
+    } else {
+      buf = next
+    }
+  }
+  if (buf) parts.push(buf)
+  return parts.length ? parts : [clean]
+}
+
+async function fetchThreadViaFx(id) {
+  const res = await fetch(`https://api.fxtwitter.com/status/${id}`, {
+    headers: { Accept: 'application/json' },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || !data?.tweet) {
+    throw new Error(data?.message || 'فشل جلب التغريدة من المصدر البديل')
+  }
+
+  const tweet = data.tweet
+  const mediaItems = [...(tweet.media?.all || []), ...(tweet.media?.photos || []), ...(tweet.media?.videos || [])]
+  const media = []
+  const seen = new Set()
+  for (const m of mediaItems) {
+    const url = m.url || m.thumbnail_url
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    media.push({
+      type: m.type === 'video' || m.format?.startsWith?.('video') ? 'video' : m.type === 'gif' ? 'gif' : 'image',
+      url,
+    })
+  }
+
+  // Prefer explicit thread array when present
+  if (Array.isArray(tweet.thread) && tweet.thread.length) {
+    return tweet.thread.map((t, i) => ({
+      id: String(t.id || `${id}_${i}`),
+      text: t.text || t.raw_text?.text || '',
+      media: i === 0 ? media : [],
+    }))
+  }
+
+  const texts = splitLongText(tweet.text || tweet.raw_text?.text || '')
+  return texts.map((text, i) => ({
+    id: i === 0 ? String(tweet.id || id) : `${id}_${i}`,
+    text,
+    media: i === 0 ? media : [],
+  }))
+}
+
+function friendlyXError(data, status) {
+  const detail = String(data?.detail || data?.title || '')
+  if (status === 402 || /credits? depleted/i.test(detail)) {
+    return 'رصيد واجهة X خلص. الاستيراد يستخدم مصدراً بديلاً مؤقتاً؛ للنشر قد تحتاج ترقية خطة API في بوابة المطوّرين.'
+  }
+  return detail || 'فشل جلب التغريدة'
+}
+
 export async function fetchThreadByUrl(accountOrToken, url) {
   const id = extractStatusId(url)
   if (!id) throw new Error('رابط غير صالح')
 
-  const rootRes = await xFetch(
-    'GET',
-    `https://api.x.com/2/tweets/${id}?tweet.fields=author_id,conversation_id,created_at,attachments,entities,text&expansions=attachments.media_keys&media.fields=url,preview_image_url,type,variants`,
-    accountOrToken,
-  )
-  const rootData = await rootRes.json()
-  if (!rootRes.ok) throw new Error(rootData.detail || rootData.title || 'فشل جلب التغريدة')
+  try {
+    const rootRes = await xFetch(
+      'GET',
+      `https://api.x.com/2/tweets/${id}?tweet.fields=author_id,conversation_id,created_at,attachments,entities,text&expansions=attachments.media_keys&media.fields=url,preview_image_url,type,variants`,
+      accountOrToken,
+    )
+    const rootData = await rootRes.json().catch(() => ({}))
+    if (!rootRes.ok) throw new Error(friendlyXError(rootData, rootRes.status))
 
-  const conversationId = rootData.data.conversation_id || id
-  const authorId = rootData.data.author_id
+    const conversationId = rootData.data.conversation_id || id
+    const authorId = rootData.data.author_id
 
-  const search = await xFetch(
-    'GET',
-    `https://api.x.com/2/tweets/search/recent?query=${encodeURIComponent(`conversation_id:${conversationId} from:${authorId}`)}&max_results=100&tweet.fields=author_id,conversation_id,created_at,in_reply_to_user_id,referenced_tweets,attachments,text&expansions=attachments.media_keys&media.fields=url,preview_image_url,type,variants`,
-    accountOrToken,
-  )
-  const searchData = await search.json()
-  const tweets = [rootData.data]
-  if (search.ok && Array.isArray(searchData.data)) {
-    for (const t of searchData.data) {
-      if (t.id !== rootData.data.id) tweets.push(t)
+    const search = await xFetch(
+      'GET',
+      `https://api.x.com/2/tweets/search/recent?query=${encodeURIComponent(`conversation_id:${conversationId} from:${authorId}`)}&max_results=100&tweet.fields=author_id,conversation_id,created_at,in_reply_to_user_id,referenced_tweets,attachments,text&expansions=attachments.media_keys&media.fields=url,preview_image_url,type,variants`,
+      accountOrToken,
+    )
+    const searchData = await search.json().catch(() => ({}))
+    const tweets = [rootData.data]
+    if (search.ok && Array.isArray(searchData.data)) {
+      for (const t of searchData.data) {
+        if (t.id !== rootData.data.id) tweets.push(t)
+      }
     }
+
+    tweets.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at))
+
+    const mediaByKey = new Map()
+    for (const m of [...(rootData.includes?.media || []), ...(searchData.includes?.media || [])]) {
+      mediaByKey.set(m.media_key, m)
+    }
+
+    return tweets.map((t) => {
+      const media = (t.attachments?.media_keys || [])
+        .map((k) => mediaByKey.get(k))
+        .filter(Boolean)
+        .map(mapXApiMedia)
+        .filter((m) => m.url)
+      return { id: t.id, text: t.text || '', media }
+    })
+  } catch (err) {
+    console.error('X API thread fetch failed, trying fallback', err)
+    return fetchThreadViaFx(id)
   }
-
-  tweets.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at))
-
-  const mediaByKey = new Map()
-  for (const m of [...(rootData.includes?.media || []), ...(searchData.includes?.media || [])]) {
-    mediaByKey.set(m.media_key, m)
-  }
-
-  return tweets.map((t) => {
-    const media = (t.attachments?.media_keys || [])
-      .map((k) => mediaByKey.get(k))
-      .filter(Boolean)
-      .map((m) => ({
-        type: m.type === 'video' ? 'video' : m.type === 'animated_gif' ? 'gif' : 'image',
-        url: m.url || m.preview_image_url || m.variants?.find((v) => v.content_type === 'video/mp4')?.url,
-      }))
-      .filter((m) => m.url)
-    return { id: t.id, text: t.text || '', media }
-  })
 }
 
 export async function fetchTweetMetrics(accountOrToken, tweetIds) {

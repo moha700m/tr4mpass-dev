@@ -590,11 +590,13 @@ async function handleApi(req, res, url) {
         session.accounts[0]
       await ensureFreshAccount(account)
       const thread = await fetchThreadByUrl(account, body.url)
-      const rewritten = await rewriteThreadParts(
-        thread.map((t) => t.text),
-        { saudi: true },
-      )
-      const parts = rewritten.map((text, i) => ({
+      let texts = thread.map((t) => t.text)
+      try {
+        texts = await rewriteThreadParts(texts, { saudi: true })
+      } catch (rewriteErr) {
+        console.error('rewrite failed, keeping original', rewriteErr)
+      }
+      const parts = texts.map((text, i) => ({
         text,
         media: body.keepMedia === false ? [] : thread[i]?.media || [],
       }))
