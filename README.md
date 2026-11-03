@@ -23,7 +23,10 @@ npm run dev
    - `X_CLIENT_SECRET` (موصى به للتطبيقات السرية)
    - `SESSION_SECRET` (نص عشوائي)
 
-الصلاحيات المطلوبة: `tweet.read tweet.write users.read offline.access media.write`
+الصلاحيات المطلوبة: `tweet.read tweet.write users.read offline.access`
+
+Callback يجب أن يطابق حرفياً:
+`https://hudu-tz2i.onrender.com/api/auth/x/callback`
 
 المسار: المستخدم يضغط «اربط X» → `/api/auth/x/start` → موافقة X → `/api/auth/x/callback` → جلسة HttpOnly + تخزين آمن في Netlify Blobs → نشر عبر `POST /api/posts/publish`.
 

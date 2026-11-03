@@ -24,5 +24,4 @@ export const X_SCOPES = [
   'tweet.write',
   'users.read',
   'offline.access',
-  'media.write',
 ].join(' ')

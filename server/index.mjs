@@ -360,9 +360,10 @@ async function handleApi(req, res, url) {
     authorize.searchParams.set('response_type', 'code')
     authorize.searchParams.set('client_id', getXClientId())
     authorize.searchParams.set('redirect_uri', redirectUri)
+    // Avoid media.write — many X apps reject consent when that scope isn't enabled
     authorize.searchParams.set(
       'scope',
-      'tweet.read tweet.write users.read offline.access media.write',
+      'tweet.read tweet.write users.read offline.access',
     )
     authorize.searchParams.set('state', state)
     authorize.searchParams.set('code_challenge', challenge)
