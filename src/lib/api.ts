@@ -4,12 +4,18 @@ export class ApiError extends Error {
   status: number
   setup?: boolean
   remaining?: number
+  freeFallback?: boolean
 
-  constructor(message: string, status: number, extra?: { setup?: boolean; remaining?: number }) {
+  constructor(
+    message: string,
+    status: number,
+    extra?: { setup?: boolean; remaining?: number; freeFallback?: boolean },
+  ) {
     super(message)
     this.status = status
     this.setup = extra?.setup
     this.remaining = extra?.remaining
+    this.freeFallback = extra?.freeFallback
   }
 }
 
@@ -28,6 +34,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(data.error || 'حدث خطأ', res.status, {
       setup: data.setup,
       remaining: data.remaining,
+      freeFallback: data.freeFallback,
     })
   }
   return data as T
@@ -71,6 +78,11 @@ export const api = {
     request<{ ok: boolean; tweetIds: string[]; url: string | null }>('/api/posts/publish', {
       method: 'POST',
       body: JSON.stringify({ parts, accountId }),
+    }),
+  recordManualPublish: (parts: TweetPart[], tweetIds: string[], accountId?: string) =>
+    request<{ ok: boolean; url: string | null; postId: string }>('/api/posts/publish-manual', {
+      method: 'POST',
+      body: JSON.stringify({ parts, tweetIds, accountId }),
     }),
   listPosts: () => request<{ posts: ScheduledPost[]; slots: number[] }>('/api/posts'),
   schedule: (parts: TweetPart[], scheduledAt: string, accountId?: string) =>

@@ -203,6 +203,12 @@
   gap: 10px;
 }
 
+.free-publish {
+  width: 100%;
+  min-height: 42px;
+  font-size: 0.9rem;
+}
+
 .status-line {
   margin: 0;
   font-size: 0.9rem;

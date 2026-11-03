@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CalendarClock, ImagePlus, Plus, Send, Trash2 } from 'lucide-react'
 import { AiPanel } from '../components/write/AiPanel'
+import { FreePublishWizard } from '../components/write/FreePublishWizard'
 import { TweetPreview } from '../components/write/TweetPreview'
 import { useApp } from '../context/AppContext'
 import { SUGGESTED_SLOTS } from '../data/mock'
 import { useThreadComposer } from '../hooks/useThreadComposer'
-import { api } from '../lib/api'
+import { ApiError, api } from '../lib/api'
 import { formatArabicDateTime, nextFreeSlot } from '../lib/schedule'
+import type { TweetPart } from '../types'
 import './WritePage.css'
 
 function fileToBase64(file: File) {
@@ -36,6 +38,7 @@ export function WritePage() {
   const [scheduledAt, setScheduledAt] = useState(() => nextFreeSlot(posts))
   const [status, setStatus] = useState('')
   const [publishing, setPublishing] = useState(false)
+  const [freeParts, setFreeParts] = useState<TweetPart[] | null>(null)
   const [params] = useSearchParams()
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaTarget = useRef<string | null>(null)
@@ -161,7 +164,12 @@ export function WritePage() {
     }
   }
 
-  const publish = async () => {
+  const startFreePublish = (parts: TweetPart[]) => {
+    setFreeParts(parts)
+    setStatus('رصيد API غير متاح — نكمّل النشر المجاني عبر X.')
+  }
+
+  const publish = async (preferFree = false) => {
     if (!account) {
       connectX()
       return
@@ -171,6 +179,10 @@ export function WritePage() {
       setStatus('اكتب شيئاً أولاً.')
       return
     }
+    if (preferFree) {
+      startFreePublish(parts)
+      return
+    }
     setPublishing(true)
     setStatus('')
     try {
@@ -178,7 +190,27 @@ export function WritePage() {
       setStatus(result.url ? `نُشر على X · ${result.url}` : 'تم النشر على X')
       composer.reset()
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'فشل النشر')
+      if (err instanceof ApiError && (err.freeFallback || err.status === 402)) {
+        startFreePublish(parts)
+      } else {
+        setStatus(err instanceof Error ? err.message : 'فشل النشر')
+      }
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const finishFreePublish = async (tweetIds: string[], url: string | null) => {
+    if (!account || !freeParts) return
+    setPublishing(true)
+    try {
+      const result = await api.recordManualPublish(freeParts, tweetIds, account.id)
+      setStatus(result.url || url ? `نُشر مجاناً عبر X · ${result.url || url}` : 'تم حفظ النشر')
+      setFreeParts(null)
+      composer.reset()
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'تم النشر على X لكن فشل الحفظ محلياً')
+      setFreeParts(null)
     } finally {
       setPublishing(false)
     }
@@ -326,11 +358,24 @@ export function WritePage() {
             <button type="button" className="btn btn-ghost" disabled={publishing} onClick={() => void onSchedule()}>
               جدولة
             </button>
-            <button type="button" className="btn btn-primary" disabled={publishing} onClick={() => void publish()}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={publishing}
+              onClick={() => void publish(false)}
+            >
               <Send size={16} />
               {publishing ? 'جارٍ…' : 'انشر الآن'}
             </button>
           </div>
+          <button
+            type="button"
+            className="btn btn-soft free-publish"
+            disabled={publishing}
+            onClick={() => void publish(true)}
+          >
+            انشر مجاناً عبر X (بدون رصيد API)
+          </button>
 
           {status && <p className="status-line muted">{status}</p>}
         </section>
@@ -349,6 +394,15 @@ export function WritePage() {
         multiple
         onChange={(e) => void onFiles(e.target.files)}
       />
+
+      {freeParts && (
+        <FreePublishWizard
+          parts={freeParts}
+          handle={account?.handle}
+          onClose={() => setFreeParts(null)}
+          onDone={(tweetIds, url) => void finishFreePublish(tweetIds, url)}
+        />
+      )}
     </div>
   )
 }

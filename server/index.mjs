@@ -701,7 +701,52 @@ async function handleApi(req, res, url) {
         [await sessionCookie(session)],
       )
     } catch (err) {
-      return sendJson(res, 502, { error: err.message || 'فشل النشر' })
+      const message = err instanceof Error ? err.message : 'فشل النشر'
+      const freeFallback = /رصيد واجهة X|credits? depleted|Payment Required/i.test(message)
+      return sendJson(res, freeFallback ? 402 : 502, {
+        error: message,
+        freeFallback,
+      })
+    }
+  }
+
+  // Record a thread published manually via X Web Intent (no API credits)
+  if (pathname === '/api/posts/publish-manual' && req.method === 'POST') {
+    const session = await requireAuth(req, res)
+    if (!session) return
+    try {
+      const body = await readBody(req)
+      const accountId = body.accountId || session.activeAccountId || session.accounts[0]?.id
+      const account = session.accounts.find((a) => a.id === accountId) || session.accounts[0]
+      const tweetIds = Array.isArray(body.tweetIds) ? body.tweetIds.map(String).filter(Boolean) : []
+      if (!tweetIds.length) return sendJson(res, 400, { error: 'لازم رابط تغريدة واحدة واحدةً على الأقل' })
+      const post = await createPost({
+        sessionId: session.id,
+        accountId,
+        parts: (body.parts || []).map((p) =>
+          typeof p === 'string' ? { text: p, media: [] } : p,
+        ),
+        scheduledAt: new Date().toISOString(),
+        status: 'published',
+      })
+      await updatePost(post.id, session.id, {
+        status: 'published',
+        publishedAt: new Date().toISOString(),
+        tweetIds,
+      })
+      return sendJson(
+        res,
+        200,
+        {
+          ok: true,
+          tweetIds,
+          url: tweetIds[0] ? `https://x.com/${account.handle}/status/${tweetIds[0]}` : null,
+          postId: post.id,
+        },
+        [await sessionCookie(session)],
+      )
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message || 'فشل حفظ النشر' })
     }
   }
 
