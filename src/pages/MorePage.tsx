@@ -70,8 +70,8 @@ export function MorePage() {
         </p>
         {!session?.xConfigured && (
           <p className="banner warn">
-            لتشغيل الربط الحقيقي: أضف <code>X_CLIENT_ID</code> (واختياريًا{' '}
-            <code>X_CLIENT_SECRET</code>) في بيئة Netlify من تطبيقك في{' '}
+            لتشغيل الربط الحقيقي: أضف <code>X_CLIENT_ID</code> و<code>X_CLIENT_SECRET</code> في
+            Environment Variables على Vercel من تطبيقك في{' '}
             <a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noreferrer">
               Developer Console
             </a>
