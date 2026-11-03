@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Sparkles, Wand2, Languages, Link2 } from 'lucide-react'
 import { PLANS } from '../../data/plans'
 import { useApp } from '../../context/AppContext'
+import { api } from '../../lib/api'
 import type { TweetPart } from '../../types'
 import { createEmptyPart } from '../../hooks/useThreadComposer'
 import './AiPanel.css'
@@ -11,36 +12,8 @@ interface Props {
   currentText: string
 }
 
-function saudiRewrite(text: string) {
-  return text
-    .replace(/\bماذا\b/g, 'وش')
-    .replace(/\bكيف\b/g, 'كيف')
-    .replace(/\bأيضا\b/g, 'تقدر')
-    .replace(/\bيجب\b/g, 'لازم')
-    .replace(/\bالآن\b/g, 'الحين')
-    .trim()
-}
-
-function strengthen(text: string) {
-  const body = text.trim()
-  if (!body) return body
-  const opener = body.split('\n')[0]
-  const rest = body.slice(opener.length).trim()
-  return `${opener}\n\n${rest ? `${rest}\n\n` : ''}لو استفدت، احفظ التغريدة وارجع لها لاحقاً.`
-}
-
-function ideaToThread(idea: string): TweetPart[] {
-  const clean = idea.trim() || 'فكرة بسيطة'
-  const parts = [
-    `${clean}\n\nأكثر الناس يضيعون هنا قبل ما يبدأون.`,
-    `خلّها بسيطة:\n١) اكتب أول جملة\n٢) كمّل بدون ما توقف\n٣) انشر وكمّل بكره`,
-    `الهدوء يساعد… مو السرعة.\n\nابدأ الحين، وخلّ الباقي يجي لوحده.\n\nتابعني لو تبي أدوات كتابة بهدوء.`,
-  ]
-  return parts.map((text) => ({ ...createEmptyPart(), text }))
-}
-
 export function AiPanel({ onApply, currentText }: Props) {
-  const { session, planId } = useApp()
+  const { session, planId, refreshSession, connectX } = useApp()
   const plan = PLANS[planId]
   const used = session?.aiAttemptsUsed ?? 0
   const unlimited = plan.aiAttempts === 'unlimited'
@@ -50,17 +23,31 @@ export function AiPanel({ onApply, currentText }: Props) {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
 
-  const run = async (fn: () => void) => {
+  const guard = () => {
+    if (!session?.isAuthenticated) {
+      connectX()
+      return false
+    }
     if (!unlimited && (left ?? 0) <= 0) {
       setNote('خلصت محاولات الذكاء في الخطة المجانية.')
-      return
+      return false
     }
+    return true
+  }
+
+  const run = async (fn: () => Promise<void>) => {
+    if (!guard()) return
     setBusy(true)
     setNote('')
-    await new Promise((r) => setTimeout(r, 450))
-    fn()
-    setBusy(false)
-    setNote('تم — راجع النص وعدّل لو تبي.')
+    try {
+      await fn()
+      await refreshSession()
+      setNote('تم — راجع النص وعدّل لو تبي.')
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : 'فشل الطلب')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -70,12 +57,80 @@ export function AiPanel({ onApply, currentText }: Props) {
         <strong>أدوات الذكاء</strong>
         <span className="spacer" />
         <span className="chip chip-accent">
-          {unlimited ? 'بلا حدود' : `${left} محاولة`}
+          {unlimited ? 'بلا حدود' : `${left} متبقية`}
         </span>
       </div>
 
+      <div className="ai-grid">
+        <button
+          type="button"
+          className="btn btn-soft ai-tool"
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              const res = await api.aiThread(idea || currentText)
+              onApply(res.parts.map((text) => ({ ...createEmptyPart(), text })))
+            })
+          }
+        >
+          <Wand2 size={16} />
+          اكتب بالذكاء
+          {!unlimited && <small>{left} متبقية</small>}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost ai-tool"
+          disabled={busy || !currentText.trim()}
+          onClick={() =>
+            run(async () => {
+              const res = await api.aiImprove(currentText)
+              onApply([{ ...createEmptyPart(), text: res.text }])
+            })
+          }
+        >
+          حسّن النص
+          {!unlimited && <small>{left} متبقية</small>}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost ai-tool"
+          disabled={busy || !currentText.trim()}
+          onClick={() =>
+            run(async () => {
+              const res = await api.aiSaudi(currentText)
+              onApply([{ ...createEmptyPart(), text: res.text }])
+            })
+          }
+        >
+          <Languages size={16} />
+          باللهجة السعودية
+          {!unlimited && <small>{left} متبقية</small>}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost ai-tool"
+          disabled={busy || !importUrl.trim()}
+          onClick={() =>
+            run(async () => {
+              const res = await api.aiImport(importUrl, true)
+              onApply(
+                res.parts.map((p) => ({
+                  ...createEmptyPart(),
+                  text: p.text,
+                  media: p.media || [],
+                })),
+              )
+            })
+          }
+        >
+          <Link2 size={16} />
+          استورد من X
+          {!unlimited && <small>{left} متبقية</small>}
+        </button>
+      </div>
+
       <label className="ai-label">
-        فكرة واحدة → ثريد كامل
+        فكرة للثريد
         <textarea
           className="field textarea"
           rows={2}
@@ -84,66 +139,15 @@ export function AiPanel({ onApply, currentText }: Props) {
           placeholder="مثال: ليش الناس تؤجل الكتابة؟"
         />
       </label>
-      <button
-        type="button"
-        className="btn btn-soft"
-        disabled={busy}
-        onClick={() => run(() => onApply(ideaToThread(idea)))}
-      >
-        <Wand2 size={16} />
-        اكتب الثريد
-      </button>
-
-      <div className="ai-actions">
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={busy || !currentText.trim()}
-          onClick={() =>
-            run(() => onApply([{ ...createEmptyPart(), text: strengthen(currentText) }]))
-          }
-        >
-          حسّن النص
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={busy || !currentText.trim()}
-          onClick={() =>
-            run(() => onApply([{ ...createEmptyPart(), text: saudiRewrite(currentText) }]))
-          }
-        >
-          <Languages size={16} />
-          لهجة سعودية
-        </button>
-      </div>
 
       <label className="ai-label">
-        استورد ثريد من رابط X
-        <div className="row">
-          <input
-            className="field"
-            value={importUrl}
-            onChange={(e) => setImportUrl(e.target.value)}
-            placeholder="https://x.com/.../status/..."
-          />
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={busy || !importUrl.trim()}
-            onClick={() =>
-              run(() =>
-                onApply(
-                  ideaToThread(
-                    'ثريد مستورد — أعدنا صياغته بهدوء وبلهجة سعودية سلسة مع الحفاظ على الروابط والهاشتاقات.',
-                  ),
-                ),
-              )
-            }
-          >
-            <Link2 size={16} />
-          </button>
-        </div>
+        رابط ثريد من X
+        <input
+          className="field"
+          value={importUrl}
+          onChange={(e) => setImportUrl(e.target.value)}
+          placeholder="https://x.com/.../status/..."
+        />
       </label>
 
       {note && <p className="ai-note muted">{note}</p>}

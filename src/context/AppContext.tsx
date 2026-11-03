@@ -6,7 +6,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { MOCK_ANALYTICS, MOCK_POSTS } from '../data/mock'
 import { PLANS } from '../data/plans'
 import { api, startXLogin, type SessionResponse } from '../lib/api'
 import type {
@@ -30,10 +29,24 @@ interface AppContextValue {
   setActiveAccount: (id: string) => Promise<void>
   posts: ScheduledPost[]
   setPosts: React.Dispatch<React.SetStateAction<ScheduledPost[]>>
+  refreshPosts: () => Promise<void>
   analytics: AnalyticsPost[]
+  analyticsTotals: {
+    views: number
+    likes: number
+    replies: number
+    reposts: number
+    bookmarks: number
+  }
+  refreshAnalytics: (range?: string, sort?: string) => Promise<void>
   planId: PlanId
   plan: (typeof PLANS)[PlanId]
   publishNow: (parts: TweetPart[], accountId?: string) => Promise<{ url: string | null }>
+  schedulePost: (
+    parts: TweetPart[],
+    scheduledAt: string,
+    accountId?: string,
+  ) => Promise<ScheduledPost>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -49,8 +62,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark')
   const [session, setSession] = useState<SessionResponse | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
-  const [posts, setPosts] = useState<ScheduledPost[]>(MOCK_POSTS)
-  const [analytics] = useState<AnalyticsPost[]>(MOCK_ANALYTICS)
+  const [posts, setPosts] = useState<ScheduledPost[]>([])
+  const [analytics, setAnalytics] = useState<AnalyticsPost[]>([])
+  const [analyticsTotals, setAnalyticsTotals] = useState({
+    views: 0,
+    likes: 0,
+    replies: 0,
+    reposts: 0,
+    bookmarks: 0,
+  })
 
   const applyTheme = useCallback((mode: ThemeMode) => {
     const resolved = mode === 'system' ? getSystemTheme() : mode
@@ -74,12 +94,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isAuthenticated: false,
         plan: 'free',
         aiAttemptsUsed: 0,
+        bulkImportsUsed: 0,
         activeAccountId: null,
         accounts: [],
         xConfigured: false,
       })
     } finally {
       setLoadingSession(false)
+    }
+  }, [])
+
+  const refreshPosts = useCallback(async () => {
+    try {
+      const data = await api.listPosts()
+      setPosts(data.posts)
+    } catch {
+      // not authenticated yet
+    }
+  }, [])
+
+  const refreshAnalytics = useCallback(async (range = '30d', sort = 'views') => {
+    try {
+      const data = await api.analytics(range, sort)
+      setAnalytics(data.posts)
+      setAnalyticsTotals(data.totals)
+    } catch {
+      setAnalytics([])
+      setAnalyticsTotals({ views: 0, likes: 0, replies: 0, reposts: 0, bookmarks: 0 })
     }
   }, [])
 
@@ -97,6 +138,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void refreshSession()
   }, [refreshSession])
 
+  useEffect(() => {
+    if (session?.isAuthenticated) {
+      void refreshPosts()
+      void refreshAnalytics()
+    }
+  }, [session?.isAuthenticated, refreshPosts, refreshAnalytics])
+
   const planId = session?.plan || 'free'
 
   const value: AppContextValue = {
@@ -109,6 +157,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     connectX: startXLogin,
     logout: async () => {
       await api.logout()
+      setPosts([])
+      setAnalytics([])
       await refreshSession()
     },
     disconnectAccount: async (id) => {
@@ -121,15 +171,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     posts,
     setPosts,
+    refreshPosts,
     analytics,
+    analyticsTotals,
+    refreshAnalytics,
     planId,
     plan: PLANS[planId],
     publishNow: async (parts, accountId) => {
-      const result = await api.publish(
-        parts.map((p) => p.text),
-        accountId,
-      )
+      const result = await api.publish(parts, accountId)
+      await refreshPosts()
       return { url: result.url }
+    },
+    schedulePost: async (parts, scheduledAt, accountId) => {
+      const { post } = await api.schedule(parts, scheduledAt, accountId)
+      await refreshPosts()
+      return post
     },
   }
 

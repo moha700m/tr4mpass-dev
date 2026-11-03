@@ -10,6 +10,7 @@ import {
 import { arSA } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { api } from '../lib/api'
 import { formatArabicDateTime } from '../lib/schedule'
 import type { PostStatus, ScheduledPost } from '../types'
 import './CalendarPage.css'
@@ -23,9 +24,10 @@ const statusLabel: Record<PostStatus, string> = {
 }
 
 export function CalendarPage() {
-  const { posts, setPosts } = useApp()
+  const { posts, refreshPosts, session, connectX } = useApp()
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }))
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [note, setNote] = useState('')
 
   const days = useMemo(
     () =>
@@ -41,23 +43,39 @@ export function CalendarPage() {
       .filter((p) => isSameDay(new Date(p.scheduledAt), day))
       .sort((a, b) => +new Date(a.scheduledAt) - +new Date(b.scheduledAt))
 
-  const onDrop = (day: Date) => {
+  const onDrop = async (day: Date) => {
     if (!draggingId) return
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id !== draggingId) return p
-        const next = new Date(p.scheduledAt)
-        next.setFullYear(day.getFullYear(), day.getMonth(), day.getDate())
-        return { ...p, scheduledAt: next.toISOString(), status: 'scheduled' as const }
-      }),
-    )
+    const post = posts.find((p) => p.id === draggingId)
     setDraggingId(null)
+    if (!post) return
+    const next = new Date(post.scheduledAt)
+    next.setFullYear(day.getFullYear(), day.getMonth(), day.getDate())
+    try {
+      await api.reschedule(post.id, next.toISOString())
+      await refreshPosts()
+      setNote(`تم نقل المنشور إلى ${formatArabicDateTime(next)}`)
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : 'فشل نقل الموعد')
+    }
+  }
+
+  if (!session?.isAuthenticated) {
+    return (
+      <div className="calendar-page rise">
+        <h1 className="page-title">التقويم</h1>
+        <p className="page-sub">أسبوع هادئ — اسحب المنشور لتغيير يومه.</p>
+        <button type="button" className="btn btn-primary" onClick={connectX}>
+          اربط X لعرض التقويم
+        </button>
+      </div>
+    )
   }
 
   return (
     <div className="calendar-page rise">
       <h1 className="page-title">التقويم</h1>
       <p className="page-sub">أسبوع هادئ — اسحب المنشور لتغيير يومه.</p>
+      {note && <p className="muted">{note}</p>}
 
       <div className="week-nav row">
         <button type="button" className="btn btn-ghost" onClick={() => setAnchor((d) => addDays(d, -7))}>
@@ -80,7 +98,7 @@ export function CalendarPage() {
             key={day.toISOString()}
             className={`day-col surface${isSameDay(day, new Date()) ? ' today' : ''}`}
             onDragOver={(e) => e.preventDefault()}
-            onDrop={() => onDrop(day)}
+            onDrop={() => void onDrop(day)}
           >
             <div className="day-head">
               <span>{format(day, 'EEEE', { locale: arSA })}</span>

@@ -17,12 +17,24 @@ export interface MediaAttachment {
   type: 'image' | 'video' | 'gif'
   url: string
   name: string
+  mediaId?: string
+  mimeType?: string
+  base64?: string
 }
 
 export interface TweetPart {
   id: string
   text: string
   media: MediaAttachment[]
+}
+
+export interface AnalyticsMetrics {
+  views: number
+  likes: number
+  replies: number
+  reposts: number
+  bookmarks: number
+  collectedAt?: string
 }
 
 export interface ScheduledPost {
@@ -33,15 +45,9 @@ export interface ScheduledPost {
   status: PostStatus
   publishedAt?: string
   createdAt: string
-}
-
-export interface AnalyticsMetrics {
-  views: number
-  likes: number
-  replies: number
-  reposts: number
-  bookmarks: number
-  collectedAt?: string
+  tweetIds?: string[]
+  metrics?: AnalyticsMetrics | null
+  metricsCollectedAt?: string
 }
 
 export interface AnalyticsPost extends ScheduledPost {

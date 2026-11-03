@@ -23,4 +23,7 @@ export const PLANS: Record<'free' | 'pro', PlanLimits> = {
   },
 }
 
+/** حد الاستيراد الجماعي للخطة المجانية (عدد الروابط) */
+export const FREE_BULK_LIMIT = 5
+
 export const PRO_PRICE_SAR = 49
