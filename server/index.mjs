@@ -343,7 +343,45 @@ async function handleApi(req, res, url) {
       return sendJson(res, 503, { error: 'ربط X غير مفعّل بعد.', setup: true })
     }
     const session = (await loadSession(req)) || createSession()
-    const redirectUri = `${originFrom(req)}/api/auth/x/callback`
+    const origin = originFrom(req)
+    const redirectUri = `${origin}/api/auth/x/callback`
+
+    // Owner Access Token from Keys & Tokens — skips broken X consent screen
+    const ownerToken = (process.env.X_ACCESS_TOKEN || '').trim()
+    const ownerSecret = (process.env.X_ACCESS_TOKEN_SECRET || '').trim()
+    if (ownerToken && ownerSecret && isOAuth1Configured()) {
+      try {
+        const user = await fetchXUser({
+          accessToken: ownerToken,
+          accessTokenSecret: ownerSecret,
+        })
+        const account = {
+          id: user.id,
+          handle: user.username,
+          name: user.name,
+          avatarUrl:
+            user.profile_image_url?.replace('_normal', '_400x400') ||
+            `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`,
+          connectedAt: new Date().toISOString(),
+          accessToken: ownerToken,
+          accessTokenSecret: ownerSecret,
+          authMode: 'oauth1-owner',
+        }
+        const maxAccounts = planOf(session).maxAccounts
+        const idx = session.accounts.findIndex((a) => a.id === account.id)
+        if (idx >= 0) session.accounts[idx] = account
+        else if (session.accounts.length >= maxAccounts) {
+          return redirect(res, `${origin}/more?error=${encodeURIComponent('وصلت لحد الحسابات في خطتك')}`)
+        } else session.accounts.push(account)
+        session.activeAccountId = account.id
+        return redirect(res, `${origin}/write?connected=1`, [
+          await sessionCookie(session),
+          makeCookie(OAUTH_COOKIE, '', 0),
+        ])
+      } catch (err) {
+        console.error('owner token connect failed, falling back to oauth dance', err)
+      }
+    }
 
     // Prefer OAuth 1.0a — avoids "You weren’t able to give access" on broken OAuth 2.0 apps
     if (usesOAuth1() || isOAuth1Configured()) {
