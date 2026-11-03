@@ -180,11 +180,9 @@
   line-height: 0.95;
   letter-spacing: -0.05em;
   font-weight: 700;
-  background: linear-gradient(180deg, var(--text) 18%, color-mix(in srgb, var(--text) 70%, var(--accent)));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: brandIn 1s var(--ease) both;
+  color: var(--text);
+  text-shadow: 0 18px 40px color-mix(in srgb, var(--accent) 22%, transparent);
+  animation: brandIn 0.85s var(--ease) both;
 }
 
 .landing-line {
@@ -193,12 +191,12 @@
   font-size: clamp(1.12rem, 3.4vw, 1.4rem);
   color: var(--text-soft);
   line-height: 1.55;
-  animation: rise 0.85s var(--ease) 0.12s both;
+  animation: riseSoft 0.7s var(--ease) 0.08s both;
 }
 
 .landing-cta {
   margin-top: 30px;
-  animation: rise 0.85s var(--ease) 0.22s both;
+  animation: riseSoft 0.7s var(--ease) 0.14s both;
 }
 
 .landing-btn {
@@ -210,14 +208,40 @@
 
 @keyframes brandIn {
   from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.98);
-    filter: blur(6px);
+    opacity: 0.35;
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes riseSoft {
+  from {
+    opacity: 0.4;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-brand,
+  .landing-line,
+  .landing-cta,
+  .landing-orb-a,
+  .landing-orb-b,
+  .field-line-1,
+  .field-line-2,
+  .field-line-3,
+  .field-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
   }
 }
 
