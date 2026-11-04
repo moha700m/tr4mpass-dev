@@ -1,0 +1,87 @@
+.preview-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tweet-preview {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+
+.tweet-preview:hover {
+  background: color-mix(in srgb, var(--bg-muted) 45%, transparent);
+}
+
+.tweet-preview:last-child {
+  border-bottom: none;
+}
+
+.tweet-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-muted);
+}
+
+.tweet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+  margin-bottom: 4px;
+  font-size: 0.92rem;
+}
+
+.tweet-meta span {
+  color: var(--text-faint);
+}
+
+.thread-badge {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  color: var(--accent-strong) !important;
+}
+
+.tweet-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.tweet-media {
+  margin-top: 12px;
+  display: grid;
+  gap: 4px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.tweet-media.count-1 {
+  grid-template-columns: 1fr;
+}
+
+.tweet-media.count-2,
+.tweet-media.count-4 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.tweet-media.count-3 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.tweet-media img,
+.tweet-media video {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--bg-muted);
+}

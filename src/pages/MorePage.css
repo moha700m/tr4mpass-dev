@@ -1,0 +1,52 @@
+.more-card {
+  padding: 18px;
+  margin-bottom: 14px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.more-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.more-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-row img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.account-row .btn {
+  margin-inline-start: auto;
+  min-height: 38px;
+}
+
+.plan-line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.logout-btn {
+  width: 100%;
+  margin-top: 4px;
+}
