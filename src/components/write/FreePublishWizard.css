@@ -5,18 +5,22 @@
   display: grid;
   place-items: end center;
   padding: 12px;
-  background: color-mix(in srgb, #000 55%, transparent);
+  background: color-mix(in srgb, #06110c 62%, transparent);
+  backdrop-filter: blur(8px);
+  animation: rise 0.28s var(--ease-out) both;
 }
 
 .fpw-card {
   width: min(560px, 100%);
   max-height: min(88dvh, 720px);
   overflow: auto;
-  padding: 16px;
+  padding: 18px;
   margin-bottom: calc(var(--nav-h) + 8px);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: var(--shadow-lg);
+  border-radius: 24px;
 }
 
 .fpw-head {

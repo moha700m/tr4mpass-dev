@@ -1,5 +1,5 @@
 .import-card {
-  padding: 16px;
+  padding: 18px;
 }
 
 .field-label {
@@ -15,6 +15,13 @@
   align-items: center;
   gap: 10px;
   font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+
+.check:hover {
+  background: var(--bg-muted);
 }
 
 .check input {

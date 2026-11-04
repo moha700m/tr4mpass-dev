@@ -202,16 +202,9 @@
 }
 
 .landing-btn {
-  min-height: 54px;
-  padding-inline: 28px;
-  font-size: 1.05rem;
-  box-shadow: 0 16px 40px color-mix(in srgb, var(--accent) 30%, transparent);
-  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.2s;
-}
-
-.landing-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 48px color-mix(in srgb, var(--accent) 36%, transparent);
+  min-height: 56px;
+  padding-inline: 30px;
+  font-size: 1.06rem;
 }
 
 .landing-scroll {

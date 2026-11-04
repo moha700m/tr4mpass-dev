@@ -10,6 +10,11 @@
   gap: 12px;
   padding: 16px;
   border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+
+.tweet-preview:hover {
+  background: color-mix(in srgb, var(--bg-muted) 45%, transparent);
 }
 
 .tweet-preview:last-child {

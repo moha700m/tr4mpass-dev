@@ -3,9 +3,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  width: min(960px, 100%);
+  width: min(980px, 100%);
   margin: 0 auto;
-  padding: 14px 16px 10px;
+  padding: 16px 18px 8px;
 }
 
 .brand {
@@ -13,22 +13,31 @@
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.brand:hover {
+  opacity: 0.85;
 }
 
 .brand-mark {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 5px var(--accent-soft);
+  background:
+    radial-gradient(circle at 30% 30%, #fff8, transparent 45%),
+    var(--accent);
+  box-shadow:
+    0 0 0 5px var(--accent-soft),
+    0 4px 14px var(--accent-glow);
   animation: softPulse 3.2s ease-in-out infinite;
 }
 
 .brand-name {
   font-family: var(--font-display);
-  font-size: 1.28rem;
+  font-size: 1.32rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
 }
 
 .account-pill {
@@ -39,9 +48,18 @@
   min-width: 0;
   padding: 5px 10px 5px 6px;
   border-radius: 999px;
-  background: var(--bg-elevated);
+  background:
+    var(--oil),
+    var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--text-soft);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.account-pill:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
 }
 
 .account-pill img {
@@ -82,7 +100,7 @@
 }
 
 .top-connect {
-  min-height: 38px;
-  padding-inline: 14px;
+  min-height: 40px;
+  padding-inline: 16px;
   font-size: 0.9rem;
 }
