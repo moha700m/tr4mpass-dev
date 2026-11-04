@@ -11,7 +11,7 @@ export function TopBar() {
     <header className="top-bar">
       <Link to="/" className="brand">
         <span className="brand-mark" aria-hidden />
-        <span className="brand-name">هدوء</span>
+        <span className="brand-name">تريندا</span>
       </Link>
 
       {account ? (

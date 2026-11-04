@@ -57,7 +57,7 @@ function getSystemTheme(): 'light' | 'dark' {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
-    return (localStorage.getItem('hudu-theme') as ThemeMode) || 'system'
+    return (localStorage.getItem('trenda-theme') as ThemeMode) || 'system'
   })
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark')
   const [session, setSession] = useState<SessionResponse | null>(null)
@@ -81,7 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setTheme = (mode: ThemeMode) => {
     setThemeState(mode)
-    localStorage.setItem('hudu-theme', mode)
+    localStorage.setItem('trenda-theme', mode)
     applyTheme(mode)
   }
 

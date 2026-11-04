@@ -22,22 +22,23 @@ export function LandingPage() {
       </div>
 
       <header className="landing-nav">
+        <span className="landing-nav-brand">Trenda</span>
         <Link to="/plans" className="landing-nav-link">
           الخطط
         </Link>
       </header>
 
       <main className="landing-hero">
-        <h1 className="landing-brand">هدوء</h1>
-        <p className="landing-line">اكتب. حسّن. انشر على X — بدون ضجيج.</p>
+        <h1 className="landing-brand">تريندا</h1>
+        <p className="landing-line">استورد أي تغريدة → صياغة سعودية → انشر وطلّع ترند.</p>
         <div className="landing-cta">
           {go ? (
             <Link to="/write" className="btn btn-primary landing-btn">
-              افتح الكتابة
+              افتح تريندا
             </Link>
           ) : (
             <button type="button" className="btn btn-primary landing-btn" onClick={connectX}>
-              ادخل بحساب X
+              ابدأ مجاناً بحساب X
             </button>
           )}
         </div>
@@ -47,20 +48,20 @@ export function LandingPage() {
       </main>
 
       <section id="more" className="landing-rest">
-        <p className="landing-rest-kicker">كيف يشتغل</p>
-        <h2>ثلاثة أشياء فقط</h2>
+        <p className="landing-rest-kicker">ليش تريندا؟</p>
+        <h2>مصنوع للسوق السعودي على X</h2>
         <ul className="landing-points">
           <li>
-            <strong>استورد</strong>
-            <span>رابط X → نسخة سعودية مختلفة</span>
+            <strong>تغييره سعودي</strong>
+            <span>مو ترجمة — نسخة مختلفة جاهزة للنشر</span>
           </li>
           <li>
-            <strong>راجع</strong>
-            <span>معاينة قبل ما تنشر</span>
+            <strong>استيراد ثريد</strong>
+            <span>من رابط X مع الصور، ثم أعد صياغته</span>
           </li>
           <li>
-            <strong>انشر</strong>
-            <span>الحين أو أقرب وقت فاضي</span>
+            <strong>جدولة هادئة</strong>
+            <span>9ص · 12م · 4م · 8م — أقرب وقت فاضي</span>
           </li>
         </ul>
       </section>

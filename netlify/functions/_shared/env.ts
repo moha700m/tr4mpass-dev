@@ -7,7 +7,7 @@ export function getXClientSecret() {
 }
 
 export function getSessionSecret() {
-  return (process.env.SESSION_SECRET || 'hudu-dev-session-secret-change-me').trim()
+  return (process.env.SESSION_SECRET || 'trenda-dev-session-secret-change-me').trim()
 }
 
 export function isXConfigured() {

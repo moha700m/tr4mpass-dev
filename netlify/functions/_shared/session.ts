@@ -19,11 +19,11 @@ export interface SessionData {
   aiAttemptsUsed: number
 }
 
-const COOKIE = 'hudu_session'
+const COOKIE = 'trenda_session'
 const TTL_SECONDS = 60 * 60 * 24 * 30
 
 function store() {
-  return getStore({ name: 'hudu-sessions', consistency: 'strong' })
+  return getStore({ name: 'trenda-sessions', consistency: 'strong' })
 }
 
 export function parseCookies(header: string | null) {

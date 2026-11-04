@@ -35,7 +35,7 @@ export default async (req: Request, _context: Context) => {
   let session: SessionData | null = null
   if (oauth.sessionId) {
     try {
-      const data = await getStore({ name: 'hudu-sessions', consistency: 'strong' }).get(
+      const data = await getStore({ name: 'trenda-sessions', consistency: 'strong' }).get(
         oauth.sessionId,
         { type: 'json' },
       )

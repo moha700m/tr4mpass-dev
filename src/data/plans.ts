@@ -13,7 +13,7 @@ export const PLANS: Record<'free' | 'pro', PlanLimits> = {
   },
   pro: {
     id: 'pro',
-    name: 'هدوء بلس',
+    name: 'تريندا بلس',
     maxAccounts: 3,
     maxScheduled: 'unlimited',
     scheduleDays: 365,

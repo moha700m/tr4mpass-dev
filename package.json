@@ -1,5 +1,5 @@
 {
-  "name": "hudu",
+  "name": "trenda",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -35,5 +35,5 @@
     "typescript": "~7.0.2",
     "vite": "^8.3.5"
   },
-  "description": "هدوء — أداة كتابة ونشر هادئة لثريدات X"
+  "description": "تريندا — أداة كتابة ونشر هادئة لثريدات X"
 }

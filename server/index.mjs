@@ -306,7 +306,7 @@ async function handleApi(req, res, url) {
   if (pathname === '/api/health' && req.method === 'GET') {
     return sendJson(res, 200, {
       ok: true,
-      app: 'hudu',
+      app: 'trenda',
       xConfigured: isXConfigured(),
       slots: SUGGESTED_SLOTS,
       db: Boolean(process.env.DATABASE_URL),
@@ -940,7 +940,7 @@ const server = createServer(async (req, res) => {
 
 await initDb()
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`هدوء running on 0.0.0.0:${PORT}`)
+  console.log(`تريندا running on 0.0.0.0:${PORT}`)
 })
 
 // Wake-time tick: attempt flushing is session-bound; keep process warm note

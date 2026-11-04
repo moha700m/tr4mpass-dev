@@ -3,8 +3,8 @@ import { getSessionSecret } from './env'
 import { randomishId } from './crypto'
 import type { SessionData } from './types'
 
-const COOKIE = 'hudu_session'
-const OAUTH_COOKIE = 'hudu_oauth'
+const COOKIE = 'trenda_session'
+const OAUTH_COOKIE = 'trenda_oauth'
 const TTL = '30d'
 
 async function secretKey() {

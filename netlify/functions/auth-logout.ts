@@ -19,7 +19,7 @@ export default async (req: Request, _context: Context) => {
       }
     }
     try {
-      await getStore({ name: 'hudu-sessions', consistency: 'strong' }).delete(session.id)
+      await getStore({ name: 'trenda-sessions', consistency: 'strong' }).delete(session.id)
     } catch {
       session.accounts = []
       session.activeAccountId = null

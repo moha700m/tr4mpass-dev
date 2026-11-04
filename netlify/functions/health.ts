@@ -5,7 +5,7 @@ import { json } from './_shared/http'
 export default async () =>
   json({
     ok: true,
-    app: 'hudu',
+    app: 'trenda',
     xConfigured: isXConfigured(),
   })
 

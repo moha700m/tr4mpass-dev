@@ -10,8 +10,8 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card surface rise">
-        <p className="login-brand">هدوء</p>
-        <h1>ادخل بهدوء</h1>
+        <p className="login-brand">تريندا</p>
+        <h1>ادخل تريندا</h1>
         <p className="muted">ربط رسمي بحساب X فقط.</p>
 
         {error && (

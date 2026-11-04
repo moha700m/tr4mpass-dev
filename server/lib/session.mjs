@@ -1,11 +1,11 @@
 import { EncryptJWT, jwtDecrypt } from 'jose'
 import { randomBytes } from 'node:crypto'
 
-const COOKIE = 'hudu_session'
-const OAUTH_COOKIE = 'hudu_oauth'
+const COOKIE = 'trenda_session'
+const OAUTH_COOKIE = 'trenda_oauth'
 
 function getSessionSecret() {
-  return (process.env.SESSION_SECRET || 'hudu-dev-session-secret-change-me').trim()
+  return (process.env.SESSION_SECRET || 'trenda-dev-session-secret-change-me').trim()
 }
 
 async function secretKey() {

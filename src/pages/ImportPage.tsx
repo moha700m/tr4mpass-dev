@@ -11,7 +11,7 @@ export function ImportPage() {
   const [keepMedia, setKeepMedia] = useState(true)
   const [promo, setPromo] = useState(true)
   const [promoText, setPromoText] = useState(
-    'مثال: لو استفدت، تابعني لمزيد من المحتوى بهدوء 👇',
+    'مثال: لو استفدت، تابعني لمزيد من المحتوى على تريندا 👇',
   )
   const [promoPlace, setPromoPlace] = useState<'end' | 'start'>('end')
   const [rewritePromo, setRewritePromo] = useState(false)

@@ -21,8 +21,8 @@ export function TweetPreview({ parts, account }: Props) {
           />
           <div className="tweet-body">
             <div className="tweet-meta">
-              <strong>{account?.name || 'هدوء'}</strong>
-              <span>@{account?.handle || 'hudu'}</span>
+              <strong>{account?.name || 'تريندا'}</strong>
+              <span>@{account?.handle || 'trenda'}</span>
               {index > 0 && <span className="thread-badge">ثريد · {index + 1}</span>}
             </div>
             <p className="tweet-text">{part.text || 'معاينة منشورك تظهر هنا…'}</p>

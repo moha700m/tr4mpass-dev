@@ -4,5 +4,5 @@ import { json } from './_lib/http'
 export const runtime = 'edge'
 
 export default async function handler() {
-  return json({ ok: true, app: 'hudu', xConfigured: isXConfigured() })
+  return json({ ok: true, app: 'trenda', xConfigured: isXConfigured() })
 }

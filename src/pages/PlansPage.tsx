@@ -63,7 +63,7 @@ export function PlansPage() {
               else alert('الدفع سيُربط لاحقاً — الواجهة جاهزة.')
             }}
           >
-            ابدأ هدوء بلس
+            ابدأ تريندا بلس
           </button>
         </article>
       </div>
